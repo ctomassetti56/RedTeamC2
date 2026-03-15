@@ -40,6 +40,7 @@ init_db()
 def dashboard():
     return render_template('index.html')
 
+
 @app.route('/checkin', methods=['POST'])
 def checkin():
     try:
@@ -72,20 +73,37 @@ def api_stats():
     now = datetime.now()
     agents = [dict(row) for row in query_db("SELECT * FROM agents")]
     results = [dict(row) for row in query_db("SELECT * FROM results ORDER BY timestamp DESC LIMIT 100")]
-    tasks = query_db("SELECT * FROM tasks")
+    tasks = [dict(row) for row in query_db("SELECT * FROM tasks")]
     
     active_count = 0
+    win_count = 0
+    lin_count = 0
+
     for a in agents:
         try:
             last_dt = datetime.combine(now.date(), datetime.strptime(a['last_seen'], '%H:%M:%S').time())
             a['status'] = "ONLINE" if (now - last_dt).total_seconds() < 45 else "OFFLINE"
-            if a['status'] == "ONLINE": active_count += 1
+            if a['status'] == "ONLINE": 
+                active_count += 1
+                if "Windows" in a['os']: win_count += 1
+                else: lin_count += 1
         except: a['status'] = "UNKNOWN"
 
     queue_data = []
     for t in tasks:
         receipts = [r['hostname'] for r in query_db("SELECT hostname FROM task_receipts WHERE task_id = ?", (t['id'],))]
-        queue_data.append({"target": t['target_type'], "command": t['command'], "seen_list": receipts})
+        
+        # Determine if the task is finished
+        is_complete = False
+        target = t['target_type']
+        
+        if target == "ALL" and len(receipts) >= len(agents) and len(agents) > 0: is_complete = True
+        elif target == "BROADCAST_WINDOWS" and len(receipts) >= win_count and win_count > 0: is_complete = True
+        elif target == "BROADCAST_LINUX" and len(receipts) >= lin_count and lin_count > 0: is_complete = True
+        elif target not in ["ALL", "BROADCAST_WINDOWS", "BROADCAST_LINUX"] and len(receipts) > 0: is_complete = True
+
+        if not is_complete:
+            queue_data.append({"target": target, "command": t['command'], "seen_list": receipts})
 
     return jsonify({"agents": agents, "results": results, "queue": queue_data, "total_count": active_count})
 
@@ -115,6 +133,12 @@ def get_result():
 def send_command():
     query_db("INSERT INTO tasks (target_type, command, timestamp) VALUES (?, ?, ?)", 
              (request.form.get('target'), request.form.get('command'), time.strftime('%H:%M:%S')))
+    return "OK", 200
+
+@app.route('/admin/purge_tasks', methods=['POST'])
+def purge_tasks():
+    query_db("DELETE FROM tasks")
+    query_db("DELETE FROM task_receipts")
     return "OK", 200
 
 if __name__ == "__main__":
