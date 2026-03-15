@@ -1,5 +1,6 @@
 from flask import Flask, request, render_template, jsonify, redirect, url_for
 from cryptography.fernet import Fernet
+from datetime import datetime, timedelta
 import sqlite3
 import time
 import json
@@ -68,15 +69,41 @@ def api_stats():
     results_rows = query_db("SELECT * FROM results ORDER BY timestamp DESC LIMIT 50")
     queue_rows = query_db("SELECT * FROM queue")
     
-    agents_dict = {row['hostname']: dict(row) for row in agents_rows}
-    # Append relevant history to each agent for the JS to process
-    for host in agents_dict:
-        agents_dict[host]['history'] = [dict(r) for r in results_rows if r['hostname'] == host]
+    # Threshold for offline status (e.g., 45 seconds)
+    OFFLINE_THRESHOLD = 45 
+    now = datetime.now()
+
+    agents_dict = {}
+    active_count = 0
+
+    for row in agents_rows:
+        agent = dict(row)
+        
+        # Calculate if offline
+        try:
+            # Parse the last_seen time (HH:MM:SS)
+            last_seen_time = datetime.strptime(agent['last_seen'], '%H:%M:%S').time()
+            # Combine with today's date for comparison
+            last_dt = datetime.combine(datetime.now().date(), last_seen_time)
+            
+            diff = (now - last_dt).total_seconds()
+            
+            if diff < OFFLINE_THRESHOLD:
+                agent['status'] = "ONLINE"
+                active_count += 1
+            else:
+                agent['status'] = "OFFLINE"
+        except:
+            agent['status'] = "UNKNOWN"
+
+        # Attach history
+        agent['history'] = [dict(r) for r in results_rows if r['hostname'] == agent['hostname']]
+        agents_dict[agent['hostname']] = agent
 
     return jsonify({
         "agents": agents_dict,
         "queue": [dict(r) for r in queue_rows],
-        "total_count": len(agents_dict)
+        "total_count": active_count # Only counts truly active ones now
     })
 
 @app.route('/result', methods=['POST'])
