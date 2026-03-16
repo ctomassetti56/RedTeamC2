@@ -319,6 +319,11 @@
 
     function selectAgent(hostname) {
         document.getElementById('target-select').value = hostname;
+        
+        // Also update the File Vault path label if you want to know who you're targeting
+        const vaultPath = document.getElementById('vault-path');
+        vaultPath.placeholder = `Path on ${hostname} (e.g. /etc/hosts)`;
+        
         document.getElementById('cmd-input').focus();
         updateDashboard();
     }
@@ -392,7 +397,11 @@
     function renderAgents(agents) {
         const table = document.getElementById('agent-table');
         const assets = document.getElementById('opt-assets');
-        const current = document.getElementById('target-select').value;
+        const targetSelect = document.getElementById('target-select');
+        
+        // 1. CAPTURE: Save what the user has currently selected
+        const savedSelection = targetSelect.value;
+
         table.innerHTML = '';
         assets.innerHTML = '';
 
@@ -402,10 +411,19 @@
         }
 
         agents.forEach(a => {
+            // Check if this specific row should have the 'selected' highlight
+            const isSelected = savedSelection === a.hostname;
+            
             table.innerHTML += `
-                <tr class="${current === a.hostname ? 'selected' : ''}">
-                    <td onclick="selectAgent('${a.hostname}')" style="cursor:pointer"><strong>${a.hostname}</strong><div class="subtle">${a.ip || '-'}</div></td>
-                    <td><span class="chip ${osChipClass(a.os_family)}">${a.os_family}</span><div class="subtle">${a.os}</div></td>
+                <tr class="${isSelected ? 'selected' : ''}">
+                    <td onclick="selectAgent('${a.hostname}')" style="cursor:pointer">
+                        <strong>${a.hostname}</strong>
+                        <div class="subtle">${a.ip || '-'}</div>
+                    </td>
+                    <td>
+                        <span class="chip ${osChipClass(a.os_family)}">${a.os_family}</span>
+                        <div class="subtle">${a.os}</div>
+                    </td>
                     <td>${a.last_seen || '--:--:--'}</td>
                     <td><span class="dot ${statusClass(a.status)}"></span>${a.status}</td>
                     <td>
@@ -415,8 +433,19 @@
                         <button class="btn btn-sm btn-outline-danger" onclick="triggerAction('${a.hostname}','kill')">KILL</button>
                     </td>
                 </tr>`;
-            assets.innerHTML += `<option value="${a.hostname}">${a.hostname}</option>`;
+            
+            // Rebuild the dropdown options
+            const opt = document.createElement('option');
+            opt.value = a.hostname;
+            opt.textContent = a.hostname;
+            assets.appendChild(opt);
         });
+
+        // 2. RESTORE: Force the dropdown back to what the user was looking at
+        // This prevents the "flicker" back to Broadcast All
+        if (savedSelection) {
+            targetSelect.value = savedSelection;
+        }
     }
 
     function renderQueue(queue) {
