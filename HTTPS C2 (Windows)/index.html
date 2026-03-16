@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>C2 Operator Dashboard</title>
+    <title>Snake Eyes C2</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         :root {
@@ -148,8 +148,8 @@
 <div class="shell">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
         <div>
-            <h3 class="title">C2 Operator Dashboard</h3>
-            <div class="subtle">Clean dark mode, fast targeting, and searchable execution history.</div>
+            <h3 class="title">Snake Eyes - HTTPS C2</h3>
+            <div class="subtle">Christian Tomassetti - Red Team C2 - Made for competition Bravo.</div>
         </div>
         <div class="d-flex gap-2 flex-wrap">
             <div class="kpi"><div class="kpi-label">Online</div><div class="kpi-val" id="k-online">0</div></div>
@@ -206,12 +206,12 @@
                             </select>
                         </div>
                         <div class="col-lg-7"><input type="text" name="command" id="cmd-input" class="form-control" placeholder="Type command" required></div>
-                        <div class="col-lg-2 d-grid"><button class="btn btn-light">Transmit</button></div>
+                        <div class="col-lg-2 d-grid"><button class="btn btn-light">Send Command</button></div>
                     </div>
                     <div class="d-flex gap-2 mt-2 flex-wrap">
                         <button type="button" class="btn btn-sm btn-outline-custom" onclick="quickCmd('whoami')">whoami</button>
                         <button type="button" class="btn btn-sm btn-outline-custom" onclick="quickCmd('systeminfo || uname -a')">sysinfo</button>
-                        <button type="button" class="btn btn-sm btn-outline-custom" onclick="quickCmd('ipconfig || ifconfig')">network</button>
+                        <button type="button" class="btn btn-sm btn-outline-custom" onclick="quickCmd('ipconfig || ip a')">network</button>
                         <button type="button" class="btn btn-sm btn-outline-custom" onclick="quickCmd('tasklist || ps aux')">processes</button>
                     </div>
                 </form>
