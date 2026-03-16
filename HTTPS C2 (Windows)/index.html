@@ -391,6 +391,12 @@
             alert("Pull task queued. Wait for next beacon and file will load automatically.");
         } else {
             alert("Push task queued. File will be replaced on next beacon.");
+            document.getElementById('vault-path').value = '';
+            document.getElementById('vault-editor').value = '';
+            vaultState.editorDirty = false;
+            vaultState.pendingPullHost = null;
+            vaultState.pendingPullPath = null;
+            vaultState.lastAppliedResultId = null;
         }
 
         updateDashboard();
@@ -465,7 +471,7 @@
             const parts = output.split('|');
             if (parts.length >= 3) {
                 const hostMatch = !vaultState.pendingPullHost || vaultState.pendingPullHost === result.hostname;
-                const pathDecoded = b64ToUtf8(parts[1]);
+                const pathDecoded = b64ToUtf8(parts[1]).trim();
                 const pathMatch = !vaultState.pendingPullPath || vaultState.pendingPullPath === pathDecoded;
                 const sameResultAlreadyApplied = vaultState.lastAppliedResultId === result.id;
 

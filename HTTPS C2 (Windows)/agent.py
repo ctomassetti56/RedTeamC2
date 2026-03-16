@@ -34,7 +34,7 @@ def execute_file_pull(command):
     """Expected format: FILE_PULL_B64|<path_b64>"""
     try:
         _, path_b64 = command.split("|", 1)
-        file_path = base64.b64decode(path_b64.encode()).decode(errors='replace')
+        file_path = base64.b64decode(path_b64.encode()).decode(errors='replace').strip()
 
         with open(file_path, "rb") as f:
             raw_bytes = f.read()
@@ -56,7 +56,10 @@ def execute_file_push(command):
     """Expected format: FILE_PUSH_B64|<path_b64>|<content_b64>"""
     try:
         _, path_b64, content_b64 = command.split("|", 2)
-        file_path = base64.b64decode(path_b64.encode()).decode(errors='replace')
+        file_path = base64.b64decode(path_b64.encode()).decode(errors='replace').strip()
+        if (file_path.startswith("'") and file_path.endswith("'")) or (file_path.startswith('"') and file_path.endswith('"')):
+            file_path = file_path[1:-1]
+
         raw_bytes = base64.b64decode(content_b64.encode())
 
         with open(file_path, "wb") as f:
