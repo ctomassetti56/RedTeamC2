@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, render_template
 from cryptography.fernet import Fernet
 from datetime import datetime
 import sqlite3
@@ -8,7 +8,7 @@ import uuid
 import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-app = Flask(__name__, template_folder=BASE_DIR, static_folder=BASE_DIR)
+app = Flask(__name__, template_folder=os.path.join(BASE_DIR, 'templates'), static_folder=BASE_DIR)
 
 SECRET_KEY = b'7lJcf_dNt7Jhc87wCBcYO46b4XRy18upQmOKrij3B4k='
 cipher = Fernet(SECRET_KEY)
@@ -73,6 +73,9 @@ def status_weight(status):
 
 @app.route('/')
 def dashboard():
+    template_path = os.path.join(BASE_DIR, 'templates', 'index.html')
+    if os.path.exists(template_path):
+        return render_template('index.html')
     return send_from_directory(BASE_DIR, 'index.html')
 
 
