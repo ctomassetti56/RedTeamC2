@@ -141,5 +141,23 @@ def purge_tasks():
     query_db("DELETE FROM task_receipts")
     return "OK", 200
 
+@app.route('/admin/action', methods=['POST'])
+def agent_action():
+    hostname = request.form.get('hostname')
+    action = request.form.get('action')
+    
+    # Map actions to specific PowerShell/Bash commands
+    commands = {
+        "kill": "taskkill /F /IM python.exe" if "Windows" in hostname else "pkill python",
+        "sysinfo": "Get-ComputerInfo | Select-Object OSName, OSVersion, CsProcessors" if "Windows" in hostname else "uname -a; lscpu",
+        "netstat": "Get-NetTCPConnection | Select-Object LocalAddress, RemoteAddress, State" if "Windows" in hostname else "netstat -tulpn"
+    }
+    
+    cmd = commands.get(action)
+    if cmd:
+        query_db("INSERT INTO tasks (target_type, command) VALUES (?, ?)", (hostname, cmd))
+        return jsonify({"status": "Tasked"}), 200
+    return "Invalid Action", 400
+
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000)
