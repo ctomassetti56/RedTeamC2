@@ -146,11 +146,16 @@ def agent_action():
     hostname = request.form.get('hostname')
     action = request.form.get('action')
     
-    # Map actions to specific PowerShell/Bash commands
+    # Get agent OS from DB to decide command type
+    agent = query_db("SELECT os FROM agents WHERE hostname = ?", (hostname,), one=True)
+    if not agent: return "Agent not found", 404
+    
+    is_windows = "Windows" in agent['os']
+    
     commands = {
-        "kill": "taskkill /F /IM python.exe" if "Windows" in hostname else "pkill python",
-        "sysinfo": "Get-ComputerInfo | Select-Object OSName, OSVersion, CsProcessors" if "Windows" in hostname else "uname -a; lscpu",
-        "netstat": "Get-NetTCPConnection | Select-Object LocalAddress, RemoteAddress, State" if "Windows" in hostname else "netstat -tulpn"
+        "kill": "taskkill /F /IM python.exe" if is_windows else "pkill -f agent.py",
+        "sysinfo": "Get-ComputerInfo | Select-Object OSName, OSVersion" if is_windows else "uname -a; cat /etc/os-release",
+        "netstat": "Get-NetTCPConnection | Select-Object LocalAddress, RemoteAddress, State" if is_windows else "ss -tulpn"
     }
     
     cmd = commands.get(action)
