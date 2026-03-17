@@ -1,4 +1,4 @@
 ansible_connection: ssh
 ansible_port: 22
-ansible_user: root
-ansible_password: "YourLinuxPassword"
+ansible_user: crimsonteam
+ansible_password: "crims0nwinz!"
