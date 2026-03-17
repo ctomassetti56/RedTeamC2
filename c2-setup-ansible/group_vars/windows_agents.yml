@@ -2,5 +2,5 @@ ansible_connection: winrm
 ansible_port: 5986
 ansible_winrm_server_cert_validation: ignore
 ansible_winrm_transport: ntlm
-ansible_user: "crimsonteam"
-ansible_password: "crimns0nwinz!"
+ansible_user: crimsonteam
+ansible_password: "crims0nwinz!"
