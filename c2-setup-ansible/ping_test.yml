@@ -1,16 +1,14 @@
 ---
-- name: Verify Linux Relays and Backend
-  hosts: backend, relays
+- name: Test Linux Relays
+  hosts: relays
   gather_facts: no
-  become: no  # <--- This overrides the ansible.cfg globally for this play
   tasks:
-    - name: Ping Linux hosts
+    - name: Ping Linux
       ping:
 
-- name: Verify Windows Agents
+- name: Test Blue Team Windows Agents
   hosts: agents
   gather_facts: no
-  become: no  # <--- This prevents the "sudo" error on Windows
   tasks:
-    - name: Ping Windows hosts
+    - name: Ping Windows
       win_ping:
