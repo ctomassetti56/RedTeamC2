@@ -1,0 +1,12 @@
+---
+- name: Verify Connections to All Lab Infrastructure
+  hosts: all
+  gather_facts: no
+  tasks:
+    - name: Testing Linux/Relay Connectivity
+      ping:
+      when: ansible_os_family != "Windows"
+
+    - name: Testing Windows Agent Connectivity
+      win_ping:
+      when: ansible_os_family == "Windows"
