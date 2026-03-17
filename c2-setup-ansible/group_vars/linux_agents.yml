@@ -2,4 +2,6 @@ ansible_connection: ssh
 ansible_port: 22
 ansible_user: crimsonteam
 ansible_password: "crims0nwinz!"
+ansible_become: yes
+ansible_become_method: sudo
 ansible_become_pass: "crims0nwinz!"

@@ -4,3 +4,4 @@ ansible_winrm_server_cert_validation: ignore
 ansible_winrm_transport: ntlm
 ansible_user: crimsonteam
 ansible_password: "crims0nwinz!"
+ansible_become: no
