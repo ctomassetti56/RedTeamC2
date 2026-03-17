@@ -1,2 +1,4 @@
----
-# Group-specific overrides go here
+ansible_connection: ssh
+ansible_port: 22
+ansible_user: root
+ansible_password: "YourLinuxPassword"

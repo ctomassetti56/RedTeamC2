@@ -15,15 +15,3 @@ relay_infrastructure:
 agent_dest_win: "C:\\ProgramData\\Microsoft\\Network\\Settings\\"
 
 agent_dest_lin: "/etc/qemu/"
-
-# Linux Credentials (Relays and Linux Agents)
-ansible_user: "crimsonteam"
-ansible_password: "crims0nwinz!"
-
-# Windows Credentials (Windows Agents)
-ansible_port: 5986
-ansible_connection: winrm
-ansible_winrm_server_cert_validation: ignore
-ansible_winrm_transport: ntlm
-ansible_winrm_user: "crimsonteam"
-ansible_winrm_password: "crims0nwinz!"
