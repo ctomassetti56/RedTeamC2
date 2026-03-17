@@ -1,0 +1,14 @@
+[Unit]
+Description=Snake Eyes C2
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/snake_eyes
+ExecStart=/usr/bin/python3 /opt/snake_eyes/server.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

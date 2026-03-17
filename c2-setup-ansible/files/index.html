@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Eyes C2</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0e0e0f;
+            --bg-2: #141416;
+            --panel: #1a1b1f;
+            --panel-soft: #202126;
+            --line: #2d2f36;
+            --text: #f5f5f7;
+            --muted: #d7d9df;
+            --success: #5ad57a;
+            --warn: #ffc857;
+            --danger: #ff6b6b;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: Inter, Segoe UI, Arial, sans-serif;
+            min-height: 100vh;
+            margin: 0;
+            padding: 1rem;
+        }
+
+        .shell { max-width: 1700px; margin: 0 auto; }
+
+        .panel {
+            background: linear-gradient(180deg, var(--panel), var(--panel-soft));
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 0.9rem;
+        }
+
+        .title { font-weight: 700; letter-spacing: .02em; margin: 0; }
+        .subtle { color: #e3e4e8; font-size: .84rem; }
+
+        .kpi {
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: var(--bg-2);
+            padding: .5rem .7rem;
+            min-width: 125px;
+        }
+        .kpi-label { color: #e0e1e6; font-size: .68rem; text-transform: uppercase; }
+        .kpi-val { font-size: 1.1rem; font-weight: 700; }
+
+        .layout { display: grid; grid-template-columns: 1.65fr 1fr; gap: 1rem; }
+        @media (max-width: 1200px) { .layout { grid-template-columns: 1fr; } }
+
+        .table-wrap { border: 1px solid var(--line); border-radius: 10px; overflow: auto; max-height: 460px; }
+        .table {
+            --bs-table-bg: transparent;
+            --bs-table-color: var(--text);
+            --bs-table-hover-bg: rgba(255,255,255,.12);
+            margin: 0;
+            font-size: .88rem;
+        }
+        .table th {
+            color: var(--muted);
+            font-size: .72rem;
+            letter-spacing: .07em;
+            text-transform: uppercase;
+            position: sticky;
+            top: 0;
+            background: #202228;
+        }
+
+        .table td,
+        .table td *,
+        .table tbody tr:hover td,
+        .table tbody tr:hover td * {
+            color: var(--text) !important;
+        }
+
+        .table tbody tr:hover {
+            background: rgba(255,255,255,.12) !important;
+        }
+
+        .chip {
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            padding: .12rem .45rem;
+            font-size: .64rem;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+        .chip.windows, .chip.linux, .chip.mac { color: #d4d4d4; }
+
+        .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: .4rem; }
+        .online { background: var(--success); }
+        .stale { background: var(--warn); }
+        .offline { background: var(--danger); }
+        .unknown { background: #8e8e93; }
+
+        .selected { box-shadow: inset 2px 0 0 #fff; background: rgba(255,255,255,.04) !important; }
+
+        .terminal {
+            background: #121316;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            max-height: 390px;
+            overflow-y: auto;
+            font-family: Consolas, monospace;
+            font-size: .82rem;
+            padding: .55rem;
+        }
+        .item {
+            border: 1px solid #32343c;
+            background: #18191d;
+            border-radius: 8px;
+            padding: .55rem;
+            margin-bottom: .48rem;
+        }
+        .result-out { white-space: pre-wrap; margin: .35rem 0 0; color: #f0f0f0; }
+
+        .form-control, .form-select {
+            background: #15161a;
+            color: var(--text);
+            border-color: #373943;
+        }
+        .form-control:focus, .form-select:focus {
+            background: #15161a;
+            color: var(--text);
+            border-color: #7a7a7a;
+            box-shadow: 0 0 0 .13rem rgba(255,255,255,.08);
+        }
+
+        .btn-outline-custom {
+            border-color: #444854;
+            color: #e8e8e8;
+        }
+        .btn-outline-custom:hover {
+            border-color: #ffffff;
+            color: #ffffff;
+            background: rgba(255,255,255,.08);
+        }
+
+    </style>
+</head>
+<body>
+<div class="shell">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <div>
+            <h3 class="title">Snake Eyes - HTTPS C2</h3>
+            <div class="subtle">Christian Tomassetti - Red Team C2 - Made for competition Bravo.</div>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <div class="kpi"><div class="kpi-label">Online</div><div class="kpi-val" id="k-online">0</div></div>
+            <div class="kpi"><div class="kpi-label">Stale</div><div class="kpi-val" id="k-stale">0</div></div>
+            <div class="kpi"><div class="kpi-label">Offline</div><div class="kpi-val" id="k-offline">0</div></div>
+            <div class="kpi"><div class="kpi-label">Queue</div><div class="kpi-val" id="k-queue">0</div></div>
+            <div class="kpi"><div class="kpi-label">Clock</div><div class="kpi-val" id="clock">00:00:00</div></div>
+        </div>
+    </div>
+
+    <div class="layout">
+        <div class="d-flex flex-column gap-3">
+            <div class="panel">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                    <strong>Agents</strong>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <input id="agent-search" class="form-control form-control-sm" placeholder="Search host / os / ip" style="width:190px">
+                        <select id="agent-os-filter" class="form-select form-select-sm" style="width:130px">
+                            <option value="ALL">All OS</option>
+                            <option value="WINDOWS">Windows</option>
+                            <option value="LINUX">Linux</option>
+                            <option value="MAC">Mac</option>
+                            <option value="UNKNOWN">Unknown</option>
+                        </select>
+                        <select id="agent-status-filter" class="form-select form-select-sm" style="width:140px">
+                            <option value="ALL">All Status</option>
+                            <option value="ONLINE">Online</option>
+                            <option value="STALE">Stale</option>
+                            <option value="OFFLINE">Offline</option>
+                            <option value="UNKNOWN">Unknown</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table class="table table-sm table-hover align-middle">
+                        <thead><tr><th>Host</th><th>OS</th><th>Last Seen</th><th>Status</th><th>Actions</th></tr></thead>
+                        <tbody id="agent-table"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="panel">
+                <strong>Command Uplink</strong>
+                <form id="cmd-form" class="mt-2">
+                    <div class="row g-2 align-items-center">
+                        <div class="col-lg-3">
+                            <select name="target" id="target-select" class="form-select">
+                                <option value="ALL">Broadcast All</option>
+                                <optgroup label="OS Groups">
+                                    <option value="BROADCAST_WINDOWS">Windows All</option>
+                                    <option value="BROADCAST_LINUX">Linux All</option>
+                                </optgroup>
+                                <optgroup label="Assets" id="opt-assets"></optgroup>
+                            </select>
+                        </div>
+                        <div class="col-lg-7"><input type="text" name="command" id="cmd-input" class="form-control" placeholder="Type command" required></div>
+                        <div class="col-lg-2 d-grid"><button class="btn btn-light">Send Command</button></div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <strong>Queue</strong>
+                <button class="btn btn-sm btn-outline-danger" onclick="purgeQueue()">Purge</button>
+            </div>
+            <div id="queue-list" class="terminal" style="max-height:650px"></div>
+        </div>
+    </div>
+
+    <div class="panel mt-3">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+            <strong>Execution History</strong>
+            <div class="d-flex gap-2 flex-wrap">
+                <input id="results-search" class="form-control form-control-sm" placeholder="Search output / host" style="width:220px">
+                <select id="results-os-filter" class="form-select form-select-sm" style="width:130px">
+                    <option value="ALL">All OS</option>
+                    <option value="WINDOWS">Windows</option>
+                    <option value="LINUX">Linux</option>
+                    <option value="MAC">Mac</option>
+                    <option value="UNKNOWN">Unknown</option>
+                </select>
+                <select id="results-host-filter" class="form-select form-select-sm" style="width:170px"><option value="ALL">All Hosts</option></select>
+            </div>
+        </div>
+        <div id="results-feed" class="terminal" style="max-height:500px"></div>
+    </div>
+
+</div>
+
+<script>
+    function osChipClass(family) {
+        if (family === 'WINDOWS') return 'windows';
+        if (family === 'LINUX') return 'linux';
+        if (family === 'MAC') return 'mac';
+        return 'unknown';
+    }
+
+    function statusClass(status) {
+        if (status === 'ONLINE') return 'online';
+        if (status === 'STALE') return 'stale';
+        if (status === 'OFFLINE') return 'offline';
+        return 'unknown';
+    }
+
+    function debounce(fn, delay = 250) {
+        let t;
+        return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); };
+    }
+
+    function quickCmd(command) {
+        document.getElementById('cmd-input').value = command;
+        document.getElementById('cmd-input').focus();
+    }
+
+    function getFilters() {
+        return {
+            agent_search: document.getElementById('agent-search').value.trim(),
+            agent_os: document.getElementById('agent-os-filter').value,
+            agent_status: document.getElementById('agent-status-filter').value,
+            results_search: document.getElementById('results-search').value.trim(),
+            results_os: document.getElementById('results-os-filter').value,
+            results_host: document.getElementById('results-host-filter').value || 'ALL',
+            results_limit: '220'
+        };
+    }
+
+    function queryString(obj) {
+        const params = new URLSearchParams();
+        Object.entries(obj).forEach(([k, v]) => { if (v !== '' && v != null) params.set(k, v); });
+        return params.toString();
+    }
+
+    function selectAgent(hostname) {
+        document.getElementById('target-select').value = hostname;
+        document.getElementById('cmd-input').focus();
+        updateDashboard();
+    }
+
+    async function triggerAction(hostname, action) {
+        const body = new FormData();
+        body.append('hostname', hostname);
+        body.append('action', action);
+        await fetch('/admin/action', { method: 'POST', body });
+        updateDashboard();
+    }
+
+    async function purgeQueue() {
+        await fetch('/admin/purge_tasks', { method: 'POST' });
+        updateDashboard();
+    }
+
+    function syncHostFilter(hosts) {
+        const select = document.getElementById('results-host-filter');
+        const prev = select.value || 'ALL';
+        select.innerHTML = '<option value="ALL">All Hosts</option>';
+        (hosts || []).forEach(h => {
+            const o = document.createElement('option');
+            o.value = h;
+            o.textContent = h;
+            select.appendChild(o);
+        });
+        if ([...select.options].some(o => o.value === prev)) select.value = prev;
+    }
+
+    function renderAgents(agents) {
+        const table = document.getElementById('agent-table');
+        const assets = document.getElementById('opt-assets');
+        const targetSelect = document.getElementById('target-select');
+        const savedSelection = targetSelect.value;
+
+        table.innerHTML = '';
+        assets.innerHTML = '';
+
+        if (!agents.length) {
+            table.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No agents match filters.</td></tr>';
+            return;
+        }
+
+        agents.forEach(a => {
+            const isSelected = savedSelection === a.hostname;
+            table.innerHTML += `
+                <tr class="${isSelected ? 'selected' : ''}">
+                    <td onclick="selectAgent('${a.hostname}')" style="cursor:pointer">
+                        <strong>${a.hostname}</strong><div class="subtle">${a.ip || '-'}</div>
+                    </td>
+                    <td><span class="chip ${osChipClass(a.os_family)}">${a.os_family}</span><div class="subtle">${a.os}</div></td>
+                    <td>${a.last_seen || '--:--:--'}</td>
+                    <td><span class="dot ${statusClass(a.status)}"></span>${a.status}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-custom" onclick="triggerAction('${a.hostname}','whoami')">WHO</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="triggerAction('${a.hostname}','kill')">KILL</button>
+                    </td>
+                </tr>`;
+            assets.innerHTML += `<option value="${a.hostname}">${a.hostname}</option>`;
+        });
+
+        if (savedSelection && savedSelection !== "ALL") targetSelect.value = savedSelection;
+    }
+
+    function renderQueue(queue) {
+        const el = document.getElementById('queue-list');
+        if (!queue.length) {
+            el.innerHTML = '<div class="text-center text-muted py-4">Queue clear.</div>';
+            return;
+        }
+        el.innerHTML = '';
+        queue.forEach(t => {
+            const seen = t.seen_list?.length ? t.seen_list.join(', ') : 'none';
+            el.innerHTML += `<div class="item"><div><span class="text-warning">#${t.task_id}</span> ${t.target} <span class="subtle">@ ${t.timestamp}</span></div><div>${t.command}</div><div class="subtle">Receipts: ${t.seen_count} (${seen})</div></div>`;
+        });
+    }
+
+    function renderResults(results) {
+        const el = document.getElementById('results-feed');
+        if (!results.length) {
+            el.innerHTML = '<div class="text-center text-muted py-4">No execution logs for selected filters.</div>';
+            return;
+        }
+        el.innerHTML = '';
+        results.forEach(r => {
+            el.innerHTML += `<div class="item"><div class="d-flex justify-content-between"><div><strong>${r.hostname}</strong> <span class="chip ${osChipClass(r.os_family)}">${r.os_family}</span></div><span class="subtle">${r.timestamp}</span></div><pre class="result-out">${r.output}</pre></div>`;
+        });
+    }
+
+    async function updateDashboard() {
+        try {
+            const data = await (await fetch(`/api/stats?${queryString(getFilters())}`)).json();
+            const s = data.stats || {};
+
+            document.getElementById('k-online').textContent = s.online_agents || 0;
+            document.getElementById('k-stale').textContent = s.stale_agents || 0;
+            document.getElementById('k-offline').textContent = s.offline_agents || 0;
+            document.getElementById('k-queue').textContent = s.queue_size || 0;
+
+            syncHostFilter(data.filters?.result_hosts || []);
+            renderAgents(data.agents || []);
+            renderQueue(data.queue || []);
+            renderResults(data.results || []);
+        } catch (err) {
+            console.error('Update failed', err);
+        }
+    }
+
+    const refreshDebounced = debounce(updateDashboard, 220);
+    ['agent-search','agent-os-filter','agent-status-filter','results-search','results-os-filter','results-host-filter'].forEach(id => {
+        document.getElementById(id).addEventListener('input', refreshDebounced);
+        document.getElementById(id).addEventListener('change', refreshDebounced);
+    });
+
+    document.getElementById('cmd-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const res = await fetch('/admin/send_cmd', { method: 'POST', body: new FormData(e.target) });
+        if (res.ok) e.target.reset();
+        updateDashboard();
+    });
+
+    setInterval(() => { document.getElementById('clock').textContent = new Date().toLocaleTimeString(); }, 1000);
+    setInterval(updateDashboard, 3000);
+    updateDashboard();
+</script>
+</body>
+</html>

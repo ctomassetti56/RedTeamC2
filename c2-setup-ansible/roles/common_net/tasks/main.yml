@@ -1,0 +1,19 @@
+---
+- name: Update hosts file (Linux)
+  become: yes
+  lineinfile:
+    path: /etc/hosts
+    # This ensures we don't create duplicate entries for the same domain
+    regexp: ".*{{ item.domain }}$"
+    line: "{{ item.ip }} {{ item.domain }}"
+    state: present
+  loop: "{{ relay_infrastructure }}"
+  when: ansible_os_family != "Windows"
+
+- name: Update hosts file (Windows)
+  ansible.windows.win_hosts:
+    state: present
+    canonical_name: "{{ item.domain }}"
+    ip_address: "{{ item.ip }}"
+  loop: "{{ relay_infrastructure }}"
+  when: ansible_os_family == "Windows"

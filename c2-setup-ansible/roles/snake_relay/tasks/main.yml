@@ -1,0 +1,27 @@
+---
+- name: Install Nginx
+  apt:
+    name: nginx
+    state: present
+    update_cache: yes
+
+- name: Create SSL Dir
+  file:
+    path: /etc/nginx/ssl/
+    state: directory
+    mode: '0755'
+
+- name: Copy Certs
+  copy:
+    src: "files/{{ item.src }}"
+    dest: "/etc/nginx/ssl/{{ item.dest }}"
+    mode: '0600'  # Keep the private key secure
+  loop:
+    - { src: "linux-selfsigned.crt", dest: "relay.crt" }
+    - { src: "linux-selfsigned.key", dest: "relay.key" }
+
+- name: Template Nginx Config
+  template:
+    src: relay_nginx.conf.j2
+    dest: /etc/nginx/sites-enabled/default  # Write directly to enabled
+  notify: Restart Nginx

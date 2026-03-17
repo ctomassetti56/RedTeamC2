@@ -1,0 +1,36 @@
+---
+- name: Install Python Dependencies
+  apt:
+    name: 
+      - python3-pip
+      - python3-flask
+      - python3-cryptography
+    state: present
+    update_cache: yes
+
+- name: Create C2 Directory
+  file:
+    path: /opt/snake_eyes/
+    state: directory
+    mode: '0755'
+
+- name: Copy Server Files
+  copy:
+    src: "files/{{ item }}"
+    dest: "/opt/snake_eyes/{{ item }}"
+    mode: '0644'
+  loop:
+    - server.py
+    - index.html
+
+- name: Setup Systemd
+  template:
+    src: c2-server.service.j2
+    dest: /etc/systemd/system/c2-server.service
+
+- name: Start Server
+  systemd:
+    name: c2-server
+    state: restarted
+    enabled: yes
+    daemon_reload: yes

