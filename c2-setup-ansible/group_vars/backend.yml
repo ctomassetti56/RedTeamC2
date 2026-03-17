@@ -1,0 +1,7 @@
+ansible_connection: ssh
+ansible_port: 22
+ansible_user: cyberrange
+ansible_password: "Cyberrange123!"
+ansible_become: yes
+ansible_become_method: sudo
+ansible_become_pass: "Cyberrange123!"

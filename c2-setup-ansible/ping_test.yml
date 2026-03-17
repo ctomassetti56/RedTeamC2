@@ -7,8 +7,22 @@
       ping:
 
 - name: Test Blue Team Windows Agents
-  hosts: agents
+  hosts: windows_agents
   gather_facts: no
   tasks:
     - name: Ping Windows
       win_ping:
+
+- name: Test Blue Team Linux Agents
+  hosts: linux_agents
+  gather_facts: no
+  tasks:
+    - name: Ping Linux
+      ping:
+
+- name: Test Backend Linux Agent
+  hosts: backend
+  gather_facts: no
+  tasks:
+    - name: Ping Linux
+      ping:
