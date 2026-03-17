@@ -1,12 +1,16 @@
 ---
-- name: Verify Connections to All Lab Infrastructure
-  hosts: all
+- name: Verify Linux Relays and Backend
+  hosts: backend, relays
   gather_facts: no
   tasks:
-    - name: Testing Linux/Relay Connectivity
+    - name: Ping Linux hosts
       ping:
-      when: ansible_os_family != "Windows"
+      become: no
 
-    - name: Testing Windows Agent Connectivity
+- name: Verify Windows Agents
+  hosts: agents
+  gather_facts: no
+  tasks:
+    - name: Ping Windows hosts
       win_ping:
-      when: ansible_os_family == "Windows"
+      become: no
