@@ -13,6 +13,13 @@
     - name: Ping Windows
       win_ping:
 
+- name: Test Blue Team Windows DNS Agents
+  hosts: windows_dns_agents
+  gather_facts: no
+  tasks:
+    - name: Ping Windows
+      win_ping:
+
 - name: Test Blue Team Linux Agents
   hosts: linux_agents
   gather_facts: no
