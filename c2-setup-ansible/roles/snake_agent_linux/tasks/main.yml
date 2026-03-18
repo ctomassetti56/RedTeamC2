@@ -14,7 +14,7 @@
 - name: Copy certificate
   ansible.builtin.copy:
     src: "linux-selfsigned.crt"
-    dest: "/etc/ssl/certs.cert.crt"
+    dest: "/etc/ssl/certs/cert.crt"
     mode: '0644'
 
 - name: Install systemd service
