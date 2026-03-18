@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['c:\\Users\\ctoma\\RedTeamC2\\RedTeamC2\\c2-setup-ansible\\files\\agent.py'],
+    ['c:\\Users\\ctoma\\RedTeamC2\\RedTeamC2\\HTTPS C2 (Windows)\\agent.py'],
     pathex=[],
     binaries=[],
     datas=[],
