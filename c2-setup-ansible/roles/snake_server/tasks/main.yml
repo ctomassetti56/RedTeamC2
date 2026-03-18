@@ -1,36 +1,38 @@
 ---
-- name: Install Python Dependencies
-  apt:
-    name: 
+- name: Install Python dependencies
+  ansible.builtin.apt:
+    name:
       - python3-pip
       - python3-flask
       - python3-cryptography
     state: present
     update_cache: yes
 
-- name: Create C2 Directory
-  file:
-    path: /opt/snake_eyes/
+- name: Create Snake Eyes Directory
+  ansible.builtin.file:
+    path: /opt/snake-eyes/
     state: directory
     mode: '0755'
 
-- name: Copy Server Files
-  copy:
-    src: "files/{{ item }}"
-    dest: "/opt/snake_eyes/{{ item }}"
-    mode: '0644'
+- name: Copy backend files
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/opt/snake-eyes/{{ item }}"
   loop:
     - server.py
     - index.html
 
-- name: Setup Systemd
-  template:
+- name: Install systemd service
+  ansible.builtin.template:
     src: c2-server.service.j2
-    dest: /etc/systemd/system/c2-server.service
+    dest: /etc/systemd/system/snake-eyes.service
 
-- name: Start Server
-  systemd:
-    name: c2-server
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Start backend
+  ansible.builtin.systemd:
+    name: snake-eyes
     state: restarted
-    enabled: yes
-    daemon_reload: yes
+    enabled: true

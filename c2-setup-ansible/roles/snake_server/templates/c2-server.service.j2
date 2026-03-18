@@ -1,12 +1,12 @@
 [Unit]
-Description=Snake Eyes C2
+Description=Snake Eyes C2 Service
 After=network.target
 
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/snake_eyes
-ExecStart=/usr/bin/python3 /opt/snake_eyes/server.py
+WorkingDirectory=/opt/snake-eyes
+ExecStart=/usr/bin/python3 /opt/snake-eyes/server.py
 Restart=always
 RestartSec=3
 

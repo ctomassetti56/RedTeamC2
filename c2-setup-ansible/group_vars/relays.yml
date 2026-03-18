@@ -2,4 +2,6 @@ ansible_connection: ssh
 ansible_port: 22
 ansible_user: cyberrange
 ansible_password: "Seagate021421!"
+ansible_become: yes
+ansible_become_method: sudo
 ansible_become_pass: "Seagate021421!"

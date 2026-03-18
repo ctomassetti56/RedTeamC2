@@ -1,10 +1,9 @@
 ---
 - name: Update hosts file (Linux)
   become: yes
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/hosts
-    # This ensures we don't create duplicate entries for the same domain
-    regexp: ".*{{ item.domain }}$"
+    regexp: "^{{ item.ip | regex_escape() }}\\s+{{ item.domain | regex_escape() }}$"
     line: "{{ item.ip }} {{ item.domain }}"
     state: present
   loop: "{{ relay_infrastructure }}"
