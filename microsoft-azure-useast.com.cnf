@@ -1,0 +1,16 @@
+[req]
+default_bits = 2048
+prompt = no
+default_md = sha256
+req_extensions = req_ext
+distinguished_name = dn
+
+[dn]
+CN = microsoft-azure-useast.com
+
+[req_ext]
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = microsoft-azure-useast.com
+IP.1 = 100.65.4.36
