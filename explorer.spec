@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['c:\\Users\\ctoma\\RedTeamC2\\RedTeamC2\\HTTPS C2 (Windows)\\agent.py'],
+    ['c:\\Users\\ctoma\\RedTeamC2\\RedTeamC2\\c2-setup-ansible\\files\\agent.py'],
     pathex=[],
     binaries=[],
     datas=[],
@@ -35,5 +35,6 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    version='c:\\Users\\ctoma\\RedTeamC2\\RedTeamC2\\version_info.txt',
     icon=['c:\\Users\\ctoma\\Downloads\\favicon.ico'],
 )
