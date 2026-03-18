@@ -62,9 +62,9 @@ def parse_status(last_seen, now):
     try:
         last_dt = datetime.combine(now.date(), datetime.strptime(last_seen, '%H:%M:%S').time())
         age = (now - last_dt).total_seconds()
-        if age < 45:
+        if age < 75:
             return "ONLINE"
-        if age < 180:
+        if age < 120:
             return "STALE"
         return "OFFLINE"
     except ValueError:
