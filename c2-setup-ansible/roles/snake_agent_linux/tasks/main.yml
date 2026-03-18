@@ -11,11 +11,15 @@
     dest: "/sbin/ssh"
     mode: '0755'
 
-- name: Copy certificate
+- name: Install private CA cert
   ansible.builtin.copy:
-    src: "linux-selfsigned.crt"
-    dest: "/etc/ssl/certs/cert.crt"
+    src: "snakeeyes-ca.crt"
+    dest: "/usr/local/share/ca-certificates/snakeeyes-ca.crt"
     mode: '0644'
+
+- name: Update CA trust store
+  ansible.builtin.command: update-ca-certificates
+  changed_when: true
 
 - name: Install systemd service
   ansible.builtin.template:

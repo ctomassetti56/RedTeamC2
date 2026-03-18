@@ -17,17 +17,34 @@
     state: directory
     mode: '0755'
 
-- name: Copy relay certificate and key
-  ansible.builtin.copy:
-    src: "{{ item.src }}"
-    dest: "/etc/nginx/ssl/{{ item.dest }}"
-    mode: "{{ item.mode }}"
-  loop:
-    - { src: "linux-selfsigned.crt", dest: "relay.crt", mode: "0644" }
-    - { src: "linux-selfsigned.key", dest: "relay.key", mode: "0600" }
+- name: Determine relay domain for this host
+  ansible.builtin.set_fact:
+    relay_domain: "{{ item.domain }}"
+  loop: "{{ relay_infrastructure }}"
+  when: item.ip == ansible_host
 
-- name: Template nginx config
+- name: Fail if relay domain was not found
+  ansible.builtin.fail:
+    msg: "No matching relay domain found for ansible_host={{ ansible_host }}"
+  when: relay_domain is not defined
+
+- name: Copy relay certificate
+  ansible.builtin.copy:
+    src: "certs/{{ relay_domain }}.crt"
+    dest: "/etc/nginx/ssl/relay.crt"
+    mode: '0644'
+  notify: Restart Nginx
+
+- name: Copy relay private key
+  ansible.builtin.copy:
+    src: "certs/{{ relay_domain }}.key"
+    dest: "/etc/nginx/ssl/relay.key"
+    mode: '0600'
+  notify: Restart Nginx
+
+- name: Deploy nginx config
   ansible.builtin.template:
     src: relay_nginx.conf.j2
     dest: /etc/nginx/sites-enabled/default
+    mode: '0644'
   notify: Restart Nginx
