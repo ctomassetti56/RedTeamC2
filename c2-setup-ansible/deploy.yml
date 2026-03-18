@@ -6,7 +6,7 @@
   roles:
     - common_net
 
-- name: Deploy Snake Eyes Backend
+- name: Deploy Snake Eyes C2 Backend
   hosts: backend
   gather_facts: true
   become: true
@@ -20,14 +20,14 @@
   roles:
     - snake_relay
 
-- name: Deploy Linux Agent Service
+- name: Deploy Linux C2 Agent Service
   hosts: linux_agents
   gather_facts: true
   become: true
   roles:
     - snake_agent_linux
 
-- name: Deploy Windows Agent Service
+- name: Deploy Windows C2 Agent Service
   hosts: windows_agents:windows_dns_agents
   gather_facts: true
   roles:
