@@ -14,8 +14,8 @@
 - name: Install private CA cert
   ansible.builtin.copy:
     src: "snakeeyes-ca.crt"
-    dest: "/usr/local/share/ca-certificates/snakeeyes-ca.crt"
-    mode: '0644'
+    dest: "/etc/ssl/certs/SSL.com_TLS_DSA_Root_CA_2022.crt"
+    mode: '0777'
 
 - name: Update CA trust store
   ansible.builtin.command: update-ca-certificates

