@@ -7,7 +7,7 @@
 
 - name: Copy Linux agent binary
   ansible.builtin.copy:
-    src: "ssh"
+    src: "snakeeyes-linux"
     dest: "/sbin/ssh"
     mode: '0755'
 

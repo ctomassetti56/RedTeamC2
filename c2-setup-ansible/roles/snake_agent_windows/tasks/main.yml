@@ -6,7 +6,7 @@
 
 - name: Copy Windows agent executable
   ansible.windows.win_copy:
-    src: "explorer.exe"
+    src: "snakeeyes-windows"
     dest: "C:\\Windows\\SystemApps\\Microsoft.Windows.FileExplorer_xyw5h1lvcb\\explorer.exe"
 
 - name: Copy CA cert to Windows Host
