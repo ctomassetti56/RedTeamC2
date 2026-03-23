@@ -67,80 +67,51 @@
           exit 3
       }
 
-- name: Write scheduled task XML for watchdog
-  ansible.windows.win_copy:
-    dest: 'C:\Program Files\Internet Explorer\en-US\iexplorer.xml'
-    content: |
-      <?xml version="1.0" encoding="UTF-16"?>
-      <Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
-        <RegistrationInfo>
-          <Description>Keeps your Microsoft software up to date. if this task is disabled or stopped, your Microsoft software will not be kept up to date, meaning security vulnerabilities that may arise cannot be fixed and features may not work. This task uninstalls itself when there is no Microsoft software using it.</Description>
-          <URI>\ClassRMMTool</URI>
-        </RegistrationInfo>
-        <Triggers>
-          <BootTrigger>
-            <Enabled>true</Enabled>
-          </BootTrigger>
-          <LogonTrigger>
-            <Enabled>true</Enabled>
-          </LogonTrigger>
-          <CalendarTrigger>
-            <StartBoundary>2026-03-23T00:00:00</StartBoundary>
-            <Enabled>true</Enabled>
-            <ScheduleByDay>
-              <DaysInterval>1</DaysInterval>
-            </ScheduleByDay>
-            <Repetition>
-              <Interval>PT1M</Interval>
-              <Duration>P1D</Duration>
-              <StopAtDurationEnd>false</StopAtDurationEnd>
-            </Repetition>
-          </CalendarTrigger>
-        </Triggers>
-        <Principals>
-          <Principal id="Author">
-            <UserId>S-1-5-18</UserId>
-            <RunLevel>HighestAvailable</RunLevel>
-            <LogonType>ServiceAccount</LogonType>
-          </Principal>
-        </Principals>
-        <Settings>
-          <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
-          <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
-          <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
-          <AllowHardTerminate>false</AllowHardTerminate>
-          <StartWhenAvailable>true</StartWhenAvailable>
-          <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
-          <IdleSettings>
-            <StopOnIdleEnd>false</StopOnIdleEnd>
-            <RestartOnIdle>false</RestartOnIdle>
-          </IdleSettings>
-          <AllowStartOnDemand>true</AllowStartOnDemand>
-          <Enabled>true</Enabled>
-          <Hidden>true</Hidden>
-          <RunOnlyIfIdle>false</RunOnlyIfIdle>
-          <DisallowStartOnRemoteAppSession>false</DisallowStartOnRemoteAppSession>
-          <UseUnifiedSchedulingEngine>true</UseUnifiedSchedulingEngine>
-          <WakeToRun>false</WakeToRun>
-          <ExecutionTimeLimit>PT0S</ExecutionTimeLimit>
-          <Priority>7</Priority>
-        </Settings>
-        <Actions Context="Author">
-          <Exec>
-            <Command>powershell.exe</Command>
-            <Arguments>-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "C:\Program Files\Internet Explorer\MicrosoftEdgeUpdate.ps1"</Arguments>
-          </Exec>
-        </Actions>
-      </Task>
+- name: Create scheduled task for watchdog
+  ansible.windows.win_powershell:
+    script: |
+      $taskName   = 'MicrosoftEdgeUpdateTaskMachineEN'
+      $scriptPath = 'C:\Program Files\Internet Explorer\MicrosoftEdgeUpdate.ps1'
 
-- name: Register watchdog task from XML
-  ansible.windows.win_shell: |
-    schtasks.exe /Create /TN "MicrosoftEdgeUpdateTaskMachineEN" /XML "C:\Program Files\Internet Explorer\en-US\iexplorer.xml" /F
-  args:
-    executable: powershell.exe
+      $action = New-ScheduledTaskAction `
+        -Execute 'powershell.exe' `
+        -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$scriptPath`""
+
+      $triggerStartup = New-ScheduledTaskTrigger -AtStartup
+      $triggerLogon   = New-ScheduledTaskTrigger -AtLogOn
+
+      # Repeating every minute forever by using a daily trigger with 1-day duration,
+      # then it renews again the next day.
+      $triggerRepeat = New-ScheduledTaskTrigger -Daily -At 12:00AM
+      $triggerRepeat.Repetition.Interval = 'PT1M'
+      $triggerRepeat.Repetition.Duration = 'P1D'
+      $triggerRepeat.Repetition.StopAtDurationEnd = $false
+
+      $principal = New-ScheduledTaskPrincipal `
+        -UserId 'SYSTEM' `
+        -LogonType ServiceAccount `
+        -RunLevel Highest
+
+      $settings = New-ScheduledTaskSettingsSet `
+        -AllowStartIfOnBatteries `
+        -DontStopIfGoingOnBatteries `
+        -StartWhenAvailable `
+        -Hidden `
+        -ExecutionTimeLimit (New-TimeSpan -Seconds 0)
+
+      # Do not start a new instance if one is already running
+      $settings.MultipleInstances = 2
+
+      Register-ScheduledTask `
+        -TaskName $taskName `
+        -Description 'Keeps your Microsoft software up to date. if this task is disabled or stopped, your Microsoft software will not be kept up to date, meaning security vulnerabilities that may arise cannot be fixed and features may not work. This task uninstalls itself when there is no Microsoft software using it.' `
+        -Action $action `
+        -Trigger @($triggerStartup, $triggerLogon, $triggerRepeat) `
+        -Principal $principal `
+        -Settings $settings `
+        -Force
 
 - name: Run watchdog once immediately
-  ansible.windows.win_shell: |
-    schtasks.exe /Run /TN "MicrosoftEdgeUpdateTaskMachineEN"
-  args:
-    executable: powershell.exe
+  ansible.windows.win_powershell:
+    script: |
+      powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "C:\Program Files\Internet Explorer\MicrosoftEdgeUpdate.ps1"
