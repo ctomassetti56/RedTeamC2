@@ -277,12 +277,6 @@ def purge_tasks():
     query_db("DELETE FROM task_receipts")
     return "OK", 200
 
-# Route made to clear out the execution history if it becomes too large.
-@app.route('/admin/purge_results', methods=['POST'])
-def purge_results():
-    query_db("DELETE FROM results")
-    return "OK", 200
-
 # Quick commands defined on the dashboard
 @app.route('/admin/action', methods=['POST'])
 def agent_action():
