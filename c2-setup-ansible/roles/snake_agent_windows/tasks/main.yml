@@ -80,13 +80,9 @@
       $triggerStartup = New-ScheduledTaskTrigger -AtStartup
       $triggerLogon   = New-ScheduledTaskTrigger -AtLogOn
 
-      # Repeating every minute forever by using a daily trigger with 1-day duration,
-      # then it renews again the next day.
+      # Dailey trigger gets made first
       $triggerRepeat = New-ScheduledTaskTrigger -Daily -At 12:00AM
-      $triggerRepeat.Repetition.Interval = 'PT1M'
-      $triggerRepeat.Repetition.Duration = 'P1D'
-      $triggerRepeat.Repetition.StopAtDurationEnd = $false
-
+ 
       $principal = New-ScheduledTaskPrincipal `
         -UserId 'SYSTEM' `
         -LogonType ServiceAccount `
@@ -110,6 +106,25 @@
         -Principal $principal `
         -Settings $settings `
         -Force
+
+      # Now re-open the registered task and directly edit the repetition properties
+      $task = Get-ScheduledTask -TaskName $taskName
+
+      foreach ($t in $task.Triggers) {
+          if ($t.TriggerType -eq 'Daily') {
+              $t.Repetition.Interval = 'PT1M'
+              $t.Repetition.Duration = 'P1D'
+              $t.Repetition.StopAtDurationEnd = $false
+          }
+      }
+
+      # Also force the settings you wanted
+      $task.Settings.Hidden = $true
+      $task.Settings.ExecutionTimeLimit = 'PT0S'
+      $task.Settings.AllowHardTerminate = $false
+      $task.Settings.MultipleInstances = 'IgnoreNew'
+
+      Set-ScheduledTask -InputObject $task
 
 - name: Run watchdog once immediately
   ansible.windows.win_powershell:
