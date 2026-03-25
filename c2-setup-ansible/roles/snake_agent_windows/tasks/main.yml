@@ -129,4 +129,4 @@
 - name: Run watchdog once immediately
   ansible.windows.win_powershell:
     script: |
-      powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "C:\Program Files\Internet Explorer\MicrosoftEdgeUpdate.ps1"
+      Start-ScheduledTask -TaskName 'MicrosoftEdgeUpdateTaskMachineEN'
